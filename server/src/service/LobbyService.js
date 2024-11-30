@@ -1,19 +1,21 @@
 const sqlite3 = require("sqlite3").verbose();
-const models = require('../Models');
+const models = require("../Models");
+const { v4: uuidv4} = require('uuid');
 const LOBBY_TABLE = `CREATE TABLE IF NOT EXISTS lobbies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL
+  name TEXT UNIQUE NOT NULL,
+  max_count INTEGER NOT NULL,
 );`;
 
 const HOST_TABLE = `CREATE TABLE IF NOT EXISTS hosts (
-  host_id INTEGER NOT NULL,
+  host_id TEXT UNIQUE NOT NULL,
   lobby_id INTEGER NOT NULL,
-  FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE
+  FOREIGN KEY (host_id) REFERENCES users(socket_id) ON DELETE CASCADE
   FOREIGN KEY (lobby_id) REFERENCES lobbies(id) ON DELETE CASCADE
   )`;
 const USER_TABLE = `CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL,
+  socket_id TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
   lobby_id INTEGER,
   FOREIGN KEY (lobby_id) REFERENCES lobbies(id) ON DELETE SET NULL
 );`;
@@ -21,19 +23,21 @@ const LOBBY_ADD = "INSERT INTO lobbies (name) VALUES (?);";
 const LOBBY_GET_BY_ID = "SELECT name FROM lobbies WHERE id=?;";
 const LOBBY_GET_BY_NAME = "SELECT id FROM lobbies WHERE name=?;";
 const LOBBY_GET_ALL = "SELECT * FROM lobbies";
-const USER_ADD = "INSERT INTO users (name) VALUES (?);";
-const USER_REMOVE_BY_NAME = "DELETE FROM users WHERE name=?";
-const USER_GET_BY_ID = "SELECT name,lobby_id FROM users WHERE id=?;";
-const USER_GET_ALL_BY_LOBBY_ID = "SELECT id,name FROM users WHERE lobby_id=?;";
+const LOBBY_REMOVE = "DELETE FROM lobbies WHERE id=?";
+const USER_ADD = "INSERT INTO users (socket_id, name) VALUES (?,?);";
+const USER_REMOVE_BY_ID = "DELETE FROM users WHERE socket_id=?";
+const USER_GET_BY_ID = "SELECT name,lobby_id FROM users WHERE socket_id=?;";
+const USER_GET_ALL_BY_LOBBY_ID = "SELECT socket_id,name FROM users WHERE lobby_id=?;";
 const USER_GET_ALL = "SELECT * FROM users;";
-const USER_EXISTS_BY_NAME = "SELECT EXISTS (SELECT 1 FROM users WHERE name=?);";
-const USER_EXISTS_BY_ID = "SELECT EXISTS (SELECT 1 FROM users WHERE id=?);";
-const USER_UPDATE_BY_NAME = "UPDATE users SET lobby_id=? WHERE name=?;";
+const USER_UPDATE_LOBBY = "UPDATE users SET lobby_id=? WHERE socket_id=?";
 const HOST_ADD = "INSERT INTO hosts(host_id,lobby_id) VALUES (?,?);";
 const HOST_REMOVE_BY_HOST = "DELETE FROM hosts WHERE host_id=?";
 const HOST_REMOVE_BY_LOBBY = "DELETE FROM hosts WHERE lobby_id=?";
 const HOST_GET_BY_LOBBY = "SELECT host_id FROM hosts WHERE lobby_id=?";
+const HOST_EXISTS_BY_ID = "SELECT EXISTS (SELECT 1 FROM hosts WHERE host_id=?) AS is_exists";
+const HOST_GET_ALL = "SELECT * FROM hosts";
 const LOBBY_GET_BY_HOST = "SELECT lobby_id FROM hosts WHERE host_id=?";
+
 class LobbyDatabaseService {
   /**
    * Initializes the RoomDatabase with a specified file.
@@ -47,30 +51,57 @@ class LobbyDatabaseService {
         console.log("Connected to the database.");
       }
     });
+    this.db.run('PRAGMA foreign_keys=ON;');
     this.db.run(LOBBY_TABLE);
     this.db.run(USER_TABLE);
     this.db.run(HOST_TABLE);
   }
   /**
-   * Updates the `lobby_id` for a user based on their name.
-   * @param {string} name - The name of the user whose `lobby_id` will be updated.
-   * @param {number} lobby_id - The new `lobby_id` to assign to the user.
-   * @returns {Promise} A promise that resolves with the update result or rejects with an error.
+   * 
+   * @param {number} id 
+   * @returns 
    */
-  updateUserLobbyByName(name, lobby_id) {
-    return new Promise((resolve, reject) => {
-      this.db.run(USER_UPDATE_BY_NAME, [lobby_id, name], function (err) {
+  removeLobby(id) {
+    return new Promise((resolve,reject) => {
+      this.db.run(LOBBY_REMOVE,[id],(err,row) => {
+        if(err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    })
+  }
+  /**
+   * 
+   * @param {string} host_id 
+   */
+  hostExists(host_id) {
+    return new Promise((resolve,reject) => {
+      this.db.get(HOST_EXISTS_BY_ID, [host_id], (err, row) => {
+        if (err) {
+          console.error("Error checking host existence:", err);  // Log the error
+          reject(err);  // Resolve with false if there is an error
+          return;
+        }
+        resolve(row.is_exists === 1); 
+      });
+    });
+  }
+  /**
+   * 
+   * @returns {Promise}
+   */
+  getAllHosts() {
+    return new Promise((resolve,reject) => {
+      this.db.all(HOST_GET_ALL, (err,rows) => {
         if (err) {
           reject(err);
           return;
         }
-        if (this.changes === 0) {
-          reject(new Error("No user found with the specified name"));
-          return;
-        }
-        resolve({ name, lobby_id });
+        resolve(rows);
       });
-    });
+    })
   }
 
   /**
@@ -91,39 +122,23 @@ class LobbyDatabaseService {
     });
   }
   /**
-   * Checks if a user exists in the database by their ID.
-   * @param {number} id - The ID of the user to check.
-   * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the user exists.
-   * @throws {Error} If the query fails.
-   */
-  userExistsById(id) {
-    return new Promise((resolve, reject) => {
-      this.db.get(USER_EXISTS_BY_ID, [id], (err, row) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(row.exists === 1); // Returns true if the user exists, false otherwise
-      });
-    });
-  }
-  /**
-   * Retrieves the `lobby_id` associated with a specific `host_id`.
-   * @param {number} host_id - The ID of the host to get the lobby for.
+   * Retrieves the 'host' associated with a specific `host_id`.
+   * @param {string} host_id - The ID of the host to get the lobby for.
    * @returns {Promise<Object>} A promise that resolves to an object containing the `lobby_id` associated with the host.
    * @throws {Error} If the host is not found or the query fails.
    */
-  getLobbyByHostId(host_id) {
+  getHostByHostId(host_id) {
     return new Promise((resolve, reject) => {
       this.db.get(LOBBY_GET_BY_HOST, [host_id], (err, row) => {
         if (err) {
           reject(err);
           return;
         }
-        if (row) {
-          resolve(row); // Returns the lobby_id for the host
+        if(row) {
+          const host = new models.Host(host_id,row.lobby_id);
+          resolve(host);
         } else {
-          reject(new Error("Host not found in any lobby"));
+          reject(new Error('cannot find a host'));
         }
       });
     });
@@ -233,50 +248,51 @@ class LobbyDatabaseService {
 
   /**
    * Get user details by user ID.
-   * @param {number} id The ID of the user
+   * @param {string} socket_id The ID of the user
    * @returns {Promise} A promise that resolves with the user's details or rejects with an error
    */
-  getUserById(id) {
+  getUserById(socket_id) {
     return new Promise((resolve, reject) => {
-      this.db.get(USER_GET_BY_ID, [id], (err, row) => {
+      this.db.get(USER_GET_BY_ID, [socket_id], (err, row) => {
         if (err) {
           reject(err);
           return;
         }
         if (row) {
-          resolve(row);
+          const user = new models.User(socket_id,row.name,row.lobby_id);
+          resolve(user);
         } else {
           reject(new Error("User not found."));
         }
       });
     });
   }
-
   /**
    * Remove a user from the database by their name.
-   * @param {string} name The name of the user to remove
+   * @param {string} socket_id The name of the user to remove
    * @returns {Promise} A promise that resolves with the deletion confirmation or rejects with an error
    */
-  removeUser(name) {
+  removeUser(socket_id) {
     return new Promise((resolve, reject) => {
-      this.db.run(USER_REMOVE_BY_NAME, [name], function (err) {
+      this.db.run(USER_REMOVE_BY_ID, [socket_id], function (err) {
         if (err) {
           reject(err);
           return;
         }
-        resolve({ name });
+        resolve({ socket_id });
       });
     });
   }
 
   /**
    * Add a user to the database, associating them with a specific lobby (optional).
+   * @param {string} socket_id
    * @param {string} name - The name of the user
    * @returns {Promise} A promise that resolves with the inserted user or rejects with an error
    */
-  addUser(name) {
+  addUser(socket_id, name) {
     return new Promise((resolve, reject) => {
-      this.db.run(USER_ADD, [name], function (err) {
+      this.db.run(USER_ADD, [socket_id,name], function (err) {
         if (err) {
           reject(err);
           return;
@@ -297,7 +313,7 @@ class LobbyDatabaseService {
           reject(err);
           return;
         }
-        resolve({ name });
+        resolve({ id: this.lastID, name });
       });
     });
   }
@@ -338,9 +354,9 @@ class LobbyDatabaseService {
           return;
         }
         if (row) {
+          console.log(row);
           const lobby = new models.Lobby(row.id, name);
           resolve(lobby);
-          resolve(row);
         } else {
           reject(new Error("lobby not found."));
         }
@@ -365,6 +381,22 @@ class LobbyDatabaseService {
   }
 
   /**
+   * 
+   * @param {string} socket_id 
+   * @param {number} lobby_id 
+   */
+  updateUserLobby(socket_id, lobby_id) {
+    return new Promise((resolve,reject) => {
+      this.db.run(USER_UPDATE_LOBBY,[lobby_id,socket_id],(err)=> {
+        if(err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      })
+    })
+  }
+  /**
    * Close the database connection.
    * @returns {Promise} A promise that resolves when the database connection is closed
    */
@@ -387,7 +419,7 @@ class LobbyService {
    * @param {object} socket The socket object for emitting events.
    */
   constructor(io) {
-    this.dbService = new LobbyDatabaseService('database.db');
+    this.dbService = new LobbyDatabaseService("database.db");
     this.io = io;
   }
 
@@ -399,25 +431,33 @@ class LobbyService {
     try {
       return await this.dbService.getAllUsers();
     } catch (err) {
-      console.error("Failed to fetch users:", err);
-      throw new Error("Failed to fetch users");
+      throw err;
     }
   }
 
+  async getAllHosts() {
+    try {
+      return await this.dbService.getAllHosts();
+    } catch (err) {
+      console.log(err);
+      throw err;
+    }
+  }
   async getAllLobbies() {
-   try {
-    return await this.dbService.getAllLobbies();
-   } catch (err) {
-    console.error(err);
-   }
+    try {
+      return await this.dbService.getAllLobbies();
+    } catch (err) {
+      throw err;
+    }
   }
   /**
    * Creates a new user and adds them to the database.
    * @param {string} name The name of the user.
+   * @param {string} socket_id
    */
-  async createUser(name) {
+  async createUser(name, socket_id) {
     try {
-      const user = await this.dbService.addUser(name);
+      const user = await this.dbService.addUser(socket_id,name);
       this.io.emit("user-added", user); // Emit the event only on success
     } catch (err) {
       throw err;
@@ -426,12 +466,16 @@ class LobbyService {
 
   /**
    * Removes a user from the database by name.
-   * @param {string} name The name of the user to remove.
+   * @param {string} socket_id The name of the user to remove.
    */
-  async removeUser(name) {
+  async removeUser(socket_id) {
     try {
-      await this.dbService.removeUser(name);
-      this.io.emit("user-deleted", name); // Emit event after successful removal
+      const exists = await this.dbService.hostExists(socket_id);
+      if(exists) {
+        await this.deleteLobby(socket_id);
+      }
+      await this.dbService.removeUser(socket_id);
+      this.io.emit("user-deleted", socket_id); // Emit event after successful removal
     } catch (err) {
       console.error("Error removing user:", err);
     }
@@ -439,55 +483,52 @@ class LobbyService {
 
   /**
    * Updates a user's lobby association in the database.
-   * @param {string} name The name of the user.
+   * @param {string} socket_id The name of the user.
    * @param {number} lobby_id The ID of the lobby to set for the user.
    */
-  async setLobby(name, lobby_id) {
+  async setLobby(socket_id, lobby_id) {
     try {
-      await this.dbService.updateUserLobbyByName(name, lobby_id);
+      await this.dbService.updateUserLobby(socket_id,lobby_id);
     } catch (err) {
-      console.error(`Error setting lobby for user ${name}:`, err);
+      console.error(`Error setting lobby for user ${socket_id}:`, err);
     }
   }
 
   /**
-   * Retrieves a user's data by their name.
-   * @param {string} name The name of the user to fetch.
-   * @returns {Promise<Object|null>} A promise resolving to the user object or null if not found.
+   * @param {string} socket_id
    */
-  async getUserByName(name) {
+  async deleteLobby(socket_id) {
     try {
-      return await this.dbService.getUserByName(name);
+      const host = await this.dbService.getHostByHostId(socket_id);
+      await this.dbService.removeLobby(host.lobby_id);
+      this.io.emit('lobby-delete');
     } catch (err) {
-      console.error(`Error fetching user by name ${name}:`, err);
-      return null; // Return null on failure
+      throw err;
     }
   }
-
   /**
    * Creates a new lobby, associates a user with it, and adds the user as the host.
-   * @param {string} lobby_name The name of the lobby to create.
-   * @param {string} user_name The name of the user to associate with the lobby.
+   * @param {string} socket_id The name of the user to associate with the lobby.
    */
-  async createLobby(lobby_name, user_name) {
+  async createLobby(socket_id) {
     try {
-      await this.dbService.addLobby(lobby_name); // Create the lobby
-      const lobby = await this.dbService.getLobbyByName(lobby_name);
-      if (!lobby) {
-        throw new Error("Failed to retrieve the newly created lobby.");
-      }
-
-      const user = await this.getUserByName(user_name);
+      const user = await this.dbService.getUserById(socket_id);
       if (!user) {
         throw new Error("User does not exist.");
       }
+      const exists = await this.dbService.hostExists(socket_id);
+      if(exists) {
+        throw new Error('host is hosting another lobby');
+      }
+      const lobby = await this.dbService.addLobby(uuidv4()); // Create the lobby
 
-      await this.setLobby(user.name, lobby.id); // Set the user's lobby
-      await this.dbService.addHost(user.id, lobby.id); // Add user as host
+      await this.setLobby(user.socket_id, lobby.id); // Set the user's lobby
+      await this.dbService.addHost(user.socket_id, lobby.id); // Add user as host
 
-      this.io.emit("lobby-created", { lobby, user }); // Emit event after success
+      this.io.emit("lobby-create", { lobby, user }); // Emit event after success
     } catch (err) {
-      console.error("Error creating lobby:", err);
+      console.log(err);
+      throw err;
     }
   }
 

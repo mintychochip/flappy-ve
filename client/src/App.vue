@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import Phaser from 'phaser';
-import { ref, toRaw } from 'vue';
+import { onBeforeUnmount, onMounted, provide, ref, toRaw } from 'vue';
 import PhaserGame from './game/PhaserGame.vue';
+import { io, Socket } from 'socket.io-client';
 
 //  References to the PhaserGame component (game and scene are exposed)
 const phaserRef = ref();
+
+const socket : Socket = io('http://localhost:3000');
+provide('socket',socket);
 
 const addSprite = () => {
 
@@ -23,6 +27,17 @@ const addSprite = () => {
     }
 
 }
+
+onMounted(() => {
+    const handleBeforeUnload = (event: Event) => {
+        socket.emit('window-reload',{id: socket.id});
+    }
+
+    window.addEventListener('beforeunload',handleBeforeUnload);
+    onBeforeUnmount(() => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+    })
+})
 
 </script>
 

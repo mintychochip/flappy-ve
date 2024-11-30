@@ -7,24 +7,22 @@ module.exports = (lobbyService) => {
       const result = await lobbyService.getAllLobbies();
       return res.status(200).json(result);
     } catch (err) {
-      return res.status(500).json({ error: "Failed to fetch lobbies" });
+      return res.status(500).json(err); 
     }
   });
 
   router.post("/lobby", async (req, res) => {
-    const { lobby_name, user_name } = req.body;
+    const { socket_id } = req.body;
 
-    if (!lobby_name || !user_name) {
-      return res
-        .status(400)
-        .json({ error: "Lobby name and user name are required" });
+    if (!socket_id) {
+      return res.status(400).json({ error: "username is required" });
     }
 
     try {
-      const result = await lobbyService.createLobby(lobby_name, user_name);
+      const result = await lobbyService.createLobby(socket_id);
       return res.status(201).json(result);
     } catch (err) {
-      return res.status(500).json({ error: "Failed to create lobby" });
+      return res.status(500).json(err);
     }
   });
 
@@ -37,12 +35,9 @@ module.exports = (lobbyService) => {
 
     try {
       const result = await lobbyService.createUser(name);
-
       return res.status(201).json(result);
     } catch (err) {
-      return res
-        .status(500)
-        .json({ error: "Failed to create user", details: err.message });
+      return res.status(500).json(err);
     }
   });
 
@@ -51,9 +46,17 @@ module.exports = (lobbyService) => {
       const result = await lobbyService.getAllUsers();
       return res.status(200).json(result);
     } catch (err) {
-      return res.status(500).json({ error: "Failed to fetch users", details: err.message });
+      return res.status(500).json(err);
     }
   });
-  
+
+  router.get("/host", async(req, res) => {
+    try {
+      const result = await lobbyService.getAllHosts();
+      return res.status(200).json(result);
+    } catch(err) {
+      return res.status(500).json(err);
+    }
+  })
   return router;
 };
