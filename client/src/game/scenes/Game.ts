@@ -1,6 +1,7 @@
-import { GameObjects, Scene } from "phaser";
-import { EventBus } from "../EventBus";
-import { Vector, ClientGameObject, ClientPlayer } from "../ClientModels";
+import {GameObjects, Scene} from "phaser";
+import {EventBus} from "../EventBus";
+import {Vector, ClientGameObject, ClientPlayer} from "../ClientModels";
+import * as phaser from "phaser";
 
 export class Game extends Scene {
     private maxTiltAngle: number = 40;
@@ -76,7 +77,7 @@ export class Game extends Scene {
                 object: ClientGameObject;
                 lerp: boolean;
             }) => {
-                this.render(data.objectId,data.object,data.lerp);
+                this.render(data.objectId, data.object, data.lerp);
             },
         );
 
@@ -90,7 +91,7 @@ export class Game extends Scene {
         });
     }
 
-    render(objectId : string, obj : ClientGameObject, lerp : boolean) {
+    render(objectId: string, obj: ClientGameObject, lerp: boolean) {
         if (!this.renderedObjectState.has(objectId)) {
             const object = this.createRenderObject(obj);
             if (object) {
@@ -103,8 +104,8 @@ export class Game extends Scene {
                     obj.position.x,
                     obj.position.y,
                 );
-                if(!lerp) {
-                    object.setPosition(obj.position.x,obj.position.y);
+                if (!lerp) {
+                    object.setPosition(obj.position.x, obj.position.y);
                 }
                 this.lerpPositionMap.set(object, target);
             }
@@ -119,11 +120,7 @@ export class Game extends Scene {
                 .setImmovable(true);
         }
         if (type === "player") {
-            return this.physics.add.sprite(
-                object.position.x,
-                object.position.y,
-                "bus",
-            );
+            return this.physics.add.sprite(object.position.x, object.position.y, "bus");
         }
     }
 }

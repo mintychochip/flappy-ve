@@ -5,6 +5,7 @@ export class ClientGameObject {
         public readonly velocity: Vector,
         public readonly name: string,
         public readonly gravity: number,
+        public readonly dimensions: Vector,
         public readonly properties: GameObjectProperties
     ) {}
 }
