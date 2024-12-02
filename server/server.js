@@ -1,11 +1,13 @@
 // server.js
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-const LobbyService = require('./src/service/LobbyService');
-const routes = require('./src/routes/ApiController'); // Import the routes directly
-const { NameGenerator } = require('./src/service/NameGenerator');
+const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
+const cors = require("cors");
+const LobbyService = require("./src/service/LobbyService");
+const routes = require("./src/routes/ApiController"); // Import the routes directly
+const { NameGenerator } = require("./src/service/NameGenerator");
+const { join } = require("path");
+const { SessionManager} = require("./SessionManager");
 
 // Create an Express app
 const app = express();
@@ -13,12 +15,13 @@ const app = express();
 // Create an HTTP server and pass the Express app
 const server = http.createServer(app);
 
+
 // Initialize socket.io with the HTTP server
 const io = socketIo(server, {
-    cors: {
-        origin: "http://localhost:8080", // Allow only this origin
-        methods: ["GET", "POST"]
-    }
+  cors: {
+    origin: "http://localhost:8081", // Allow only this origin
+    methods: ["GET", "POST"],
+  },
 });
 
 // Initialize LobbyService with socket.io instance
@@ -29,35 +32,50 @@ app.use(express.json());
 app.use(cors());
 
 // Use routes, passing lobbyService as a dependency
-app.use('/api', routes(lobbyService));
-const nameGenerator = new NameGenerator();
+app.use("/api", routes(lobbyService));
+const manager = new SessionManager(io);
+const id = generateRoomId();
+console.log(id);
+manager.start(id,20);
+io.on("connection", (socket) => {
 
-
-// Set up socket.io event handlers
-io.on('connection', (socket) => {
-    try {
-        lobbyService.createUser(nameGenerator.generateName(),socket.id);
-    } catch (err) {
-        console.log(err);
+  socket.on("join-room", (response,callback) => {
+    const { sessionId, playerId, playerName } = response;
+    const session = manager.getSession(sessionId);
+    if(!session) {
+      return;
     }
-
-    const removeUser = (id) => {
-        try {
-            lobbyService.removeUser(id);
-        } catch (err) {
-            console.log(err);
-        }
+    session.join(socket,playerId,playerName);
+    console.log(`Socket ${socket.id} joined: ${sessionId}`)
+    if(callback) {
+        callback({ success: true });
     }
-    socket.on('disconnect', () => {
-        removeUser(socket.id);  
-    });    
-    socket.on('window-reload',(id) => {
-        removeUser(id);
-    });
+  });
+  socket.on('drive',(response) => {
+    const { sessionId, playerId } = response;
+    const session = manager.getSession(sessionId);
+    if(!session) {
+      return;
+    }
+    session.handleDrive(playerId);
+    io.to(sessionId).emit('player-drive',playerId);
+  });
 });
 
+function generateRoomId() {
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let roomId = "";
+  for (let i = 0; i < 6; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    roomId += characters[randomIndex];
+  }
+  return roomId;
+}
 // Set the port and start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+

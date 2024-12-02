@@ -1,83 +1,74 @@
 <template>
     <div class="menu">
-        <h1>Lobby</h1>
-        <button @click="createLobby">Create Lobby</button>
-        <div v-if="lobbies.length > 0">
-            <ul>
-                <li v-for="lobby in lobbies" :key="lobby.id">
-                    {{ lobby.name }} (ID: {{ lobby.id }}) 
-                </li>
-            </ul>
-        </div>
-        <div v-else>
-            <p>No lobbies available</p>
+        <div class="input-container">
+            <!-- Input for Lobby ID -->
+            <el-input style="width: 240px" v-model="localSessionId" maxlength="6" size="large" type="text" placeholder="Enter Lobby ID"
+                class="input-field"></el-input>
+            <!-- <el-input style="width: 240px" v-model="playerName" maxlength="6" size="large" type="text" placeholder="Enter Lobby ID"
+                class="input-field"></el-input> -->
+            
+            <!-- Spacer between input and button -->
+            <div class="spacer">
+                <el-button v-if="localSessionId && localSessionId.length === 6" type="primary" @click="joinRoom" size="large" round>Join</el-button>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from 'vue';
-import { ClientLobby } from './model/ClientLobby';
-const lobbies = ref<ClientLobby[]>([]);
-
-const socket : any = inject('socket');
-const createLobby = async() => {
-    try {
-        const endpoint = "http://localhost:3000/api/lobby";
-        const id = socket.id;
-        if(!id) {
-            throw new Error('no name');
-        }
-        const data = {
-            socket_id: id,
-        }
-    
-        const response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",  // Set the content type to JSON
-            },
-            body: JSON.stringify(data),  // Send the data as a JSON string in the body
-        });
-
-        if(response.ok) {
-            const result = await response.json();
-            console.log('lobby created:', result);
-        } else {
-            const error = await response.json();
-            console.error("Failed to create lobby:", error);
-        }
-    } catch (err) {
-        console.log(err);
+import { inject, onMounted, Ref, ref, watch } from "vue";
+import { ElMessage } from "element-plus";
+const emit = defineEmits();
+const props = defineProps({
+    sessionId: {
+        type: String,
+        required: true,
     }
-}
-const fetchLobbies = async () => {
-    try {
-        //TODO: MAGIC VALUE
-        const endpoint = "http://localhost:3000/api/lobby";
-        const response = await fetch(endpoint);
-        if (!response.ok) {
-            throw new Error('failed to fetch lobbies');
-        }
-        const data = await response.json();
-        lobbies.value = data.map((lobby: { id: number, name: string }) => {
-            return new ClientLobby(lobby.id, lobby.name);
-        });
-    } catch (err) {
-        console.error(err);
+});
+const localSessionId = ref(props.sessionId);
+const playerId = inject('uuid') as string;
+const socketService: any = inject("$socket");
+const joinRoom = () => { 
+    // Emit the 'join-room' event with room_id and handle callback
+    const data = {
+        sessionId: localSessionId.value,
+        playerId:  playerId,
+        playerName: 'Frizzle'
     }
+    socketService.getSocket().emit('join-room', data, (response: {sessionId:string, playerName: string}) => {
+        emit('update:sessionId',localSessionId.value);
+            ElMessage({
+                message: `Joined ${localSessionId.value}`,
+                type: 'success',
+                duration: 1000
+            });
+        });
 }
-
-const listenToLobbyUpdates = () => {
-    socket.on('lobby-create', () => {
-        fetchLobbies();
-    });
-    socket.on('lobby-delete',() => {
-        fetchLobbies();
-    })
-}
-onMounted(() => {
-    fetchLobbies();
-    listenToLobbyUpdates();
-})
+onMounted(() => { });
 </script>
+
+<style scoped>
+.menu {
+    text-align: center;
+    padding: 20px;
+}
+
+.input-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    /* Adds space between input and button */
+}
+
+.input-field {
+    margin-bottom: 10px;
+    /* Adds space below the input */
+}
+
+.spacer {
+    height: 10px;
+    /* Creates a visible spacer */
+}
+</style>

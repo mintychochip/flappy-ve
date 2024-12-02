@@ -1,48 +1,40 @@
 <script setup lang="ts">
 import Phaser from 'phaser';
 import { onBeforeUnmount, onMounted, provide, ref, toRaw } from 'vue';
+import { socketService } from './SocketService';
+import Menu from './Menu.vue';
 import PhaserGame from './game/PhaserGame.vue';
-import { io, Socket } from 'socket.io-client';
-
+import { v4 as uuidv4} from 'uuid';
 //  References to the PhaserGame component (game and scene are exposed)
 const phaserRef = ref();
-
-const socket : Socket = io('http://localhost:3000');
-provide('socket',socket);
-
-const addSprite = () => {
-
-    const scene = toRaw(phaserRef.value.scene) as Phaser.Scene;
-
-    if (scene)
-    {
-
-        // Add a new sprite to the current scene at a random position
-        const x = Phaser.Math.Between(64, scene.scale.width - 64);
-        const y = Phaser.Math.Between(64, scene.scale.height - 64);
-    
-        // `add.sprite` is a Phaser GameObjectFactory method and it returns a Sprite Game Object instance
-        scene.add.sprite(x, y, 'star');
-
-    }
-
-}
+const localPlayerId = uuidv4();
+provide('uuid',localPlayerId);
+const sessionId = ref<string | null> (null);
+provide('sessionId',sessionId);
 
 onMounted(() => {
-    const handleBeforeUnload = (event: Event) => {
-        socket.emit('window-reload',{id: socket.id});
-    }
-
-    window.addEventListener('beforeunload',handleBeforeUnload);
-    onBeforeUnmount(() => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-    })
 })
-
 </script>
 
 <template>
     <div id="app">
-        <router-view></router-view>
+        <Menu v-model:sessionId="sessionId"></Menu>
+        <PhaserGame v-if="sessionId" ref = "phaserRef"/>
     </div>
 </template>
+
+<style>
+#app {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;  /* Full viewport height */
+    width: 100vw;   /* Full viewport width */
+}
+
+.container {
+    display: grid;
+    height: 100vh;
+}
+
+</style>

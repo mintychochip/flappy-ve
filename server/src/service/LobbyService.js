@@ -4,7 +4,7 @@ const { v4: uuidv4} = require('uuid');
 const LOBBY_TABLE = `CREATE TABLE IF NOT EXISTS lobbies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT UNIQUE NOT NULL,
-  max_count INTEGER NOT NULL,
+  max_count INTEGER NOT NULL
 );`;
 
 const HOST_TABLE = `CREATE TABLE IF NOT EXISTS hosts (
@@ -19,9 +19,10 @@ const USER_TABLE = `CREATE TABLE IF NOT EXISTS users (
   lobby_id INTEGER,
   FOREIGN KEY (lobby_id) REFERENCES lobbies(id) ON DELETE SET NULL
 );`;
-const LOBBY_ADD = "INSERT INTO lobbies (name) VALUES (?);";
-const LOBBY_GET_BY_ID = "SELECT name FROM lobbies WHERE id=?;";
-const LOBBY_GET_BY_NAME = "SELECT id FROM lobbies WHERE name=?;";
+
+const LOBBY_ADD = "INSERT INTO lobbies (name, max_count) VALUES (?,?);";
+const LOBBY_GET_BY_ID = "SELECT name, max_count FROM lobbies WHERE id=?;";
+const LOBBY_GET_BY_NAME = "SELECT id, max_count FROM lobbies WHERE name=?;";
 const LOBBY_GET_ALL = "SELECT * FROM lobbies";
 const LOBBY_REMOVE = "DELETE FROM lobbies WHERE id=?";
 const USER_ADD = "INSERT INTO users (socket_id, name) VALUES (?,?);";
@@ -306,9 +307,9 @@ class LobbyDatabaseService {
    * @param {string} name The name of the lobby
    * @returns {Promise} A promise that resolves with the inserted lobby or rejects with an error
    */
-  addLobby(name) {
+  addLobby(name, max_count = 10) {
     return new Promise((resolve, reject) => {
-      this.db.run(LOBBY_ADD, [name], function (err) {
+      this.db.run(LOBBY_ADD, [name, max_count], function (err) {
         if (err) {
           reject(err);
           return;
@@ -331,9 +332,8 @@ class LobbyDatabaseService {
           return;
         }
         if (row) {
-          const lobby = new models.Lobby(id, row.name);
+          const lobby = new models.Lobby(id, row.name, row.max_count);
           resolve(lobby);
-          resolve(row);
         } else {
           reject(new Error("lobby not found."));
         }
@@ -354,8 +354,7 @@ class LobbyDatabaseService {
           return;
         }
         if (row) {
-          console.log(row);
-          const lobby = new models.Lobby(row.id, name);
+          const lobby = new models.Lobby(row.id, name, row.max_count);
           resolve(lobby);
         } else {
           reject(new Error("lobby not found."));
@@ -501,7 +500,7 @@ class LobbyService {
     try {
       const host = await this.dbService.getHostByHostId(socket_id);
       await this.dbService.removeLobby(host.lobby_id);
-      this.io.emit('lobby-delete');
+      this.io.emit('lobby-deleted');
     } catch (err) {
       throw err;
     }
@@ -525,7 +524,7 @@ class LobbyService {
       await this.setLobby(user.socket_id, lobby.id); // Set the user's lobby
       await this.dbService.addHost(user.socket_id, lobby.id); // Add user as host
 
-      this.io.emit("lobby-create", { lobby, user }); // Emit event after success
+      this.io.emit("lobby-created", { lobby, user }); // Emit event after success
     } catch (err) {
       console.log(err);
       throw err;
