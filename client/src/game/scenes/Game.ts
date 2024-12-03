@@ -5,7 +5,7 @@ import * as phaser from "phaser";
 
 export class Game extends Scene {
     private maxTiltAngle: number = 40;
-    private renderedObjectState: Map<string, Phaser.Physics.Arcade.Sprite> =
+    private renderedObjects: Map<string, Phaser.Physics.Arcade.Sprite> =
         new Map();
 
     private lerpPositionMap: Map<Phaser.Physics.Arcade.Sprite, Vector> =
@@ -82,7 +82,7 @@ export class Game extends Scene {
         );
 
         EventBus.on("player-drive", (playerId: string) => {
-            const player = this.renderedObjectState.get(playerId);
+            const player = this.renderedObjects.get(playerId);
             if (!player) {
                 return;
             }
@@ -92,13 +92,13 @@ export class Game extends Scene {
     }
 
     render(objectId: string, obj: ClientGameObject, lerp: boolean) {
-        if (!this.renderedObjectState.has(objectId)) {
+        if (!this.renderedObjects.has(objectId)) {
             const object = this.createRenderObject(obj);
             if (object) {
-                this.renderedObjectState.set(objectId, object);
+                this.renderedObjects.set(objectId, object);
             }
         } else {
-            const object = this.renderedObjectState.get(objectId);
+            const object = this.renderedObjects.get(objectId);
             if (object) {
                 const target = new Vector(
                     obj.position.x,
@@ -120,8 +120,42 @@ export class Game extends Scene {
                 .setImmovable(true);
         }
         if (type === "player") {
-            return this.physics.add.sprite(object.position.x, object.position.y, "bus");
+            
+            const group = new LeaderGroup(this,object.position.x,object.position.y,'bus')
+            .addFollower(this.add.text(object.position.x,object.position.y,'test'), new Vector(-25,-50));
+            return group;
         }
     }
+}
+
+class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
+
+    private followers: Map<Positionable,Vector> = new Map();
+    constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
+        super(scene,x,y,texture);
+
+        scene.add.existing(this);
+        scene.physics.world.enable(this);
+    }
+
+    addFollower(follower: Positionable, offset: Vector) {
+        this.followers.set(follower,offset);
+        return this;
+    }
+
+    setPosition(x: number, y: number) {
+        super.setPosition(x,y);
+        if(!this.followers) {
+            return this;
+        }
+        this.followers.forEach((offset,follower) => {
+            follower.setPosition(x + offset.x,y + offset.y);
+        })
+        return this;
+    }
+}
+
+interface Positionable {
+    setPosition(x: number, y: number): this;
 }
 
