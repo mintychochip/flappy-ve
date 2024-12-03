@@ -1,16 +1,25 @@
 import {GameObjects, Scene} from "phaser";
 import {EventBus} from "../EventBus";
-import {Vector, ClientGameObject, ClientPlayer} from "../ClientModels";
+import {Vector, ClientGameObject} from "../ClientModels";
 import * as phaser from "phaser";
 
+/*TODO:
+- Render Background Scene
+- Show players tilting based off {ClientPlayer} velocity
+*/
+
+class RenderObject {
+    constructor(
+        public readonly sprite: Phaser.Physics.Arcade.Sprite,
+        public meta: ClientGameObject
+    ) {}
+}
 export class Game extends Scene {
     private maxTiltAngle: number = 40;
-    private renderedObjects: Map<string, Phaser.Physics.Arcade.Sprite> =
+    private renderedObjects: Map<string, RenderObject> =
         new Map();
 
-    private lerpPositionMap: Map<Phaser.Physics.Arcade.Sprite, Vector> =
-        new Map();
-
+    private lerpList: Set<string> = new Set();
     constructor() {
         super("Game");
     }
@@ -23,10 +32,16 @@ export class Game extends Scene {
     update() {
         this.rotateBody();
         const lerpFactor = 0.05;
-        this.lerpPositionMap.forEach((target, sprite) => {
-            const x = this.lerp(sprite.x, target.x, lerpFactor);
-            const y = this.lerp(sprite.y, target.y, lerpFactor);
-            sprite.setPosition(x, y);
+        this.lerpList.forEach((spriteId) => {
+            const object = this.renderedObjects.get(spriteId);
+            if(object) {
+                const target = object.meta.position;
+                const {sprite} = object;
+                const x = this.lerp(sprite.x, target.x, lerpFactor);
+                console.log(x);
+                const y = this.lerp(sprite.y, target.y, lerpFactor);
+                sprite.setPosition(x,y);
+            }
         });
         // if(this.bus && this.busDisplayName) {
         //     const x = this.lerp(this.bus.x - 25,this.busDisplayName.x, this.lerpFactor);
@@ -87,47 +102,46 @@ export class Game extends Scene {
                 return;
             }
             console.log(playerId);
-            player.anims.play("drive");
+            player.sprite.anims.play("drive");
         });
     }
+    render(objectId: string, obj: ClientGameObject, lerp: boolean): void {
+        let object = this.renderedObjects.get(objectId);
 
-    render(objectId: string, obj: ClientGameObject, lerp: boolean) {
-        if (!this.renderedObjects.has(objectId)) {
-            const object = this.createRenderObject(obj);
-            if (object) {
-                this.renderedObjects.set(objectId, object);
-            }
-        } else {
-            const object = this.renderedObjects.get(objectId);
-            if (object) {
-                const target = new Vector(
-                    obj.position.x,
-                    obj.position.y,
-                );
-                if (!lerp) {
-                    object.setPosition(obj.position.x, obj.position.y);
-                }
-                this.lerpPositionMap.set(object, target);
+        if(!object) {
+            object = this.createRender(obj);
+            if(object) this.renderedObjects.set(objectId,object);
+        }
+
+        if(object) {
+            object.meta = obj;
+            if(!lerp) {
+                this.lerpList.delete(objectId);
+                object.sprite.setPosition(obj.position.x,obj.position.y);
+            } else {
+                this.lerpList.add(objectId);
             }
         }
     }
 
-    createRenderObject(object: ClientGameObject) {
-        const type = object.type;
+    createRender(object: ClientGameObject): RenderObject | undefined {
+        const {x,y} = object.position;
+        const { type} = object;
         if (type === "pipe") {
-            return this.physics.add
-                .sprite(object.position.x, object.position.y, "pipe")
-                .setImmovable(true);
+            return new RenderObject(this.physics.add
+                .sprite(x,y, "pipe")
+                .setImmovable(true),object);
         }
         if (type === "player") {
-            
-            const group = new LeaderGroup(this,object.position.x,object.position.y,'bus')
-            .addFollower(this.add.text(object.position.x,object.position.y,'test'), new Vector(-25,-50));
-            return group;
+            const group = new LeaderGroup(this,x,y,'bus')
+            .addFollower(this.add.text(x,y,object.name), new Vector(-20,-50));
+            return new RenderObject(group,object);
         }
     }
 }
-
+interface Positionable {
+    setPosition(x: number, y: number): this;
+}
 class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
 
     private followers: Map<Positionable,Vector> = new Map();
@@ -155,7 +169,4 @@ class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
     }
 }
 
-interface Positionable {
-    setPosition(x: number, y: number): this;
-}
 

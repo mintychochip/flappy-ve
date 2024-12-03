@@ -4,7 +4,6 @@ const {
     Vector,
     GameObjectBuilder,
 } = require("./src/Models");
-const {Socket} = require("socket.io");
 
 const config = {
     screenWidth: 1024,
@@ -40,7 +39,7 @@ function createPipe(origin) {
 function createPlayer(origin, name) {
     return new GameObjectBuilder('player')
         .setBounded(true)
-        .setGravity(60)
+        .setGravity(50)
         .setName(name)
         .setWidth(58)
         .setHeight(22)

@@ -28,18 +28,3 @@ export class ClientHitbox {
         public readonly pointTwo: Vector
     ) {}
 }
-
-export class ClientPlayer extends ClientGameObject {
-    public readonly name: string;
-
-    constructor(
-        name: string, 
-        type: string, 
-        position: Vector, 
-        hitbox: ClientHitbox, 
-        lerp: boolean
-    ) {
-        super(type, position, hitbox, lerp); 
-        this.name = name; 
-    }
-}
