@@ -66,7 +66,7 @@ class GameObject {
         this.dimensions = dimensions;
     }
 
-    update(deltaTime) {
+    update(deltaTime, boundX=0, boundY=0) {
         if (this.gravity) {
             this.velocity.y += this.gravity * deltaTime;
         }
@@ -75,6 +75,9 @@ class GameObject {
         if (this.properties.bounded) {
             displacementY = Math.max(0, displacementY);
             displacementX = Math.max(0, displacementX);
+
+            displacementY = Math.min(boundY,displacementY);
+            displacementX = Math.min(boundX,displacementX);
         }
         this.position.y = displacementY;
         this.position.x = displacementX;

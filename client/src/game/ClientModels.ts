@@ -22,9 +22,6 @@ export class Vector {
     ) {}
 }
 
-export class ClientHitbox {
-    constructor(
-        public readonly pointOne: Vector,
-        public readonly pointTwo: Vector
-    ) {}
+export enum ClientGameEvent {
+    DRIVE = 'drive',
 }

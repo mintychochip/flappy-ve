@@ -106,18 +106,7 @@ class Session {
                     }
                 }
                 if (object.type === "player") {
-                  pipes.forEach(pipe => {
-                    const b = object.collides(pipe);
-                    if(b) {
-                      console.log(b,pipe,object);
-                      setTimeout(() => {
-
-                      },5000);
-                    }
-
-                  });
-                    object.update(1 / this.tps);
-
+                    object.update(1 / this.tps,config.screenWidth,config.screenHeight);
                 }
                 io.to(this.sessionId).emit("update", data);
             });
