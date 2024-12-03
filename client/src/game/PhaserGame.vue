@@ -4,6 +4,7 @@ import { EventBus } from './EventBus';
 import StartGame from './main';
 import Phaser from 'phaser';
 // Save the current scene instance
+
 const scene = ref();
 const game = ref();
 const socketService: any = inject('$socket');

@@ -4,7 +4,6 @@ const {
     Vector,
     GameObjectBuilder,
 } = require("./src/Models");
-const {Socket} = require("socket.io");
 
 const config = {
     screenWidth: 1024,
@@ -40,7 +39,7 @@ function createPipe(origin) {
 function createPlayer(origin, name) {
     return new GameObjectBuilder('player')
         .setBounded(true)
-        .setGravity(60)
+        .setGravity(50)
         .setName(name)
         .setWidth(58)
         .setHeight(22)
@@ -107,18 +106,7 @@ class Session {
                     }
                 }
                 if (object.type === "player") {
-                  pipes.forEach(pipe => {
-                    const b = object.collides(pipe);
-                    if(b) {
-                      console.log(b,pipe,object);
-                      setTimeout(() => {
-
-                      },5000);
-                    }
-
-                  });
-                    object.update(1 / this.tps);
-
+                    object.update(1 / this.tps,config.screenWidth,config.screenHeight);
                 }
                 io.to(this.sessionId).emit("update", data);
             });

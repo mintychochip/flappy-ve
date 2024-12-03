@@ -33,7 +33,7 @@ const joinRoom = () => {
     const data = {
         sessionId: localSessionId.value,
         playerId:  playerId,
-        playerName: 'Frizzle'
+        playerName: 'Test'
     }
     socketService.getSocket().emit('join-room', data, (response: {sessionId:string, playerName: string}) => {
         emit('update:sessionId',localSessionId.value);
