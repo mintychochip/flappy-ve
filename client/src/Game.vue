@@ -11,11 +11,9 @@ const route = useRoute();
 
 //  References to the PhaserGame component (game and scene are exposed)
 const phaserRef = ref();
-const localPlayerId = uuidv4();
-provide('uuid',localPlayerId);
 
 const sessionId = ref<string | null>(route.query.sessionId || null)
-provide('sessionId',sessionId);
+const playerId = ref<string | null>(route.query.playerId || null)
 
 onMounted(() => {
 })

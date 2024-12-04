@@ -4,10 +4,6 @@ import Home from './Home.vue'
 import Game from './Game.vue'
 import NotFound from './NotFound.vue'
 
-// const routes = {
-//   '/': Home,
-//   '/game': Game
-// }
 
 const currentPath = ref(window.location.hash)
 

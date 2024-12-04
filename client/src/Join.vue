@@ -39,6 +39,7 @@ const joinRoom = () => {
     playerName: 'Test'
   }
   console.log(`session id FIRST Local: ${localSessionId.value}`);
+  console.log(playerId);
   socketService.getSocket().emit('join-room', data, (response: {sessionId:string, playerName: string}) => {
     emit('update:sessionId',response.sessionId);
     ElMessage({
@@ -48,7 +49,10 @@ const joinRoom = () => {
     });
     router.push({
       path: '/game',
-      query: { sessionId: response.sessionId },
+      query: { 
+        sessionId: response.sessionId,
+        playerId: response.playerId,
+       },
     });
   });
 }

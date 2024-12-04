@@ -62,10 +62,10 @@ io.on("connection", (socket) => {
     if(!session) {
       return;
     }
-    session.join(socket,playerId, playerName);
-    console.log(`Socket ${socket.id} named ${playerName} joined: session ${sessionId}`)
+    session.join(socket, playerId, playerName);
+    console.log(`Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`)
     if(callback) {
-        callback({ sessionId, playerName });
+        callback({ sessionId, playerId, playerName });
     }
   });
   socket.on('drive',(response) => {
