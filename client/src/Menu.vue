@@ -23,19 +23,24 @@ const props = defineProps({
     sessionId: {
         type: String,
         required: true,
+    },
+    playerId: {
+        try: String,
+        required: true,
     }
 });
+const localPlayerId = ref(props.playerId);
 const localSessionId = ref(props.sessionId);
 const playerId = inject('uuid') as string;
 const socketService: any = inject("$socket");
+const playerId = 
 const joinRoom = () => { 
     // Emit the 'join-room' event with room_id and handle callback
     const data = {
         sessionId: localSessionId.value,
-        playerId:  playerId,
         playerName: 'Test'
     }
-    socketService.getSocket().emit('join-room', data, (response: {sessionId:string, playerName: string}) => {
+    socketService.getSocket().emit('join-room', data, (response: {playerId: string}) => {
         emit('update:sessionId',localSessionId.value);
             ElMessage({
                 message: `Joined ${localSessionId.value}`,
@@ -43,6 +48,7 @@ const joinRoom = () => {
                 duration: 1000
             });
         });
+        emit('update:playerId', playerId);
 }
 onMounted(() => { });
 </script>
