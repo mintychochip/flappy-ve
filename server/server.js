@@ -39,16 +39,16 @@ console.log(id);
 manager.start(id,20);
 io.on("connection", (socket) => {
 
-  socket.on("join-room", (response,callback) => {
-    const { sessionId, playerId, playerName } = response;
+  socket.on("join-room", (data,callback) => {
+    const { sessionId, playerName } = data;
     const session = manager.getSession(sessionId);
     if(!session) {
       return;
     }
-    session.join(socket,playerId,playerName);
+    const playerId = session.join(socket,playerId,playerName);
     console.log(`Socket ${socket.id} joined: ${sessionId}`)
     if(callback) {
-        callback({ success: true });
+        callback({ playerId });
     }
   });
   socket.on('drive',(response) => {
