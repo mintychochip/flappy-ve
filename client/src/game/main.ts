@@ -7,10 +7,10 @@ const config: Types.Core.GameConfig = {
     width: 1024,
     height: 768,
     parent: 'game-container',
+    fps: {target:60, forceSetTimeOut: true},
     physics: {
         default: 'arcade',
         arcade: { 
-            
         }
     },
     backgroundColor: '#028af8',
