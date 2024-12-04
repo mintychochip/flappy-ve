@@ -78,7 +78,9 @@ class Session {
     join(socket, playerId, playerName) {
         socket.join(this.sessionId);
         const player = createPlayer(
-            new Vector(100, config.screenHeight / 2), playerName);
+            new Vector(100, config.screenHeight / 2),
+            playerName
+        );
         this.objects.set(playerId, player);
     }
 

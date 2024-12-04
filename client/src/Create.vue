@@ -1,5 +1,5 @@
 <template>
-    <div class="menu">
+    <div class="online-menu">
         <div class="input-container">
             <!-- Input for Lobby ID -->
             <el-input style="width: 240px" v-model="localSessionId" maxlength="6" size="large" type="text" placeholder="Enter Lobby ID"
@@ -48,7 +48,7 @@ onMounted(() => { });
 </script>
 
 <style scoped>
-.menu {
+.online-menu {
     text-align: center;
     padding: 20px;
 }
