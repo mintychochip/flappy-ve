@@ -56,7 +56,7 @@ class Hitbox {
 
 class GameObject {
 
-    constructor(type, position, velocity, name, gravity, properties, dimensions) {
+    constructor(type, position, velocity, name, gravity, properties, dimensions, rotation) {
         this.type = type;
         this.position = position;
         this.velocity = velocity;
@@ -64,9 +64,10 @@ class GameObject {
         this.gravity = gravity;
         this.properties = properties;
         this.dimensions = dimensions;
+        this.rotation = rotation;
     }
 
-    update(deltaTime, boundX=0, boundY=0) {
+    update(deltaTime, boundX = 0, boundY = 0) {
         if (this.gravity) {
             this.velocity.y += this.gravity * deltaTime;
         }
@@ -76,11 +77,10 @@ class GameObject {
             displacementY = Math.max(0, displacementY);
             displacementX = Math.max(0, displacementX);
 
-            displacementY = Math.min(boundY,displacementY);
-            displacementX = Math.min(boundX,displacementX);
+            displacementY = Math.min(boundY, displacementY);
+            displacementX = Math.min(boundX, displacementX);
         }
-        this.position.y = displacementY;
-        this.position.x = displacementX;
+        this.setPosition(displacementX,displacementY);
     }
 
     setPosition(x, y) {
@@ -101,6 +101,10 @@ class GameObject {
             this.position.y + this.properties.height > obj2.position.y
         );
     }
+
+    clone() {
+        return new GameObject(this.type,this.position,this.velocity,this.name,this.gravity,this.properties,this.dimensions,this.rotation);
+    }
 }
 
 class GameObjectBuilder {
@@ -108,13 +112,19 @@ class GameObjectBuilder {
         this.type = type;
         this.position = new Vector(0, 0);
         this.velocity = new Vector(0, 0);
-        this.dimensions = {width: 0, height: 0};
+        this.dimensions = { width: 0, height: 0 };
         this.gravity = 0;
         this.name = '';
         this.properties = {
-          bounded: false,};
+            bounded: false,
+        };
+        this.rotation = 0;
     }
 
+    setRotation(rotation) {
+        this.rotation = rotation;
+        return this;
+    }
     setPosition(vec) {
         this.position = vec;
         return this;
@@ -129,15 +139,18 @@ class GameObjectBuilder {
         this.velocity = vec;
         return this;
     }
-
+    setDimensions(dimensions) {
+        this.dimensions = dimensions;
+        return this;
+    }
     setWidth(width) {
-      this.dimensions.width = width;
-      return this;
+        this.dimensions.width = width;
+        return this;
     }
 
     setHeight(height) {
-      this.dimensions.height = height;
-      return this;
+        this.dimensions.height = height;
+        return this;
     }
 
     setGravity(gravity) {
@@ -163,9 +176,48 @@ class GameObjectBuilder {
             this.name,
             this.gravity,
             this.properties,
-            this.dimensions
+            this.dimensions,
+            this.rotation
         );
     }
 }
+class LeaderObject extends GameObject {
+    constructor(leader) {
+        super(leader.type, leader.position, leader.velocity, leader.name, leader.gravity, leader.properties, leader.dimensions, leader.rotation);
+        this.followers = new Map();
+    }
+    /**
+     * 
+     * @param {GameObject} follower 
+     * @param {Vector} offset 
+     * @returns {LeaderObject}
+     */
+    addFollower(id, follower, offset) {
+        this.followers.set(id, {follower,offset});
+        return this;
+    }
 
-module.exports = {Lobby, User, Host, GameObject, Hitbox, GameObjectBuilder, Vector};
+    setPosition(x, y) {
+        super.setPosition(x, y);
+        this.followers.forEach((value, id) => {
+            const {follower,offset} = value;
+            const finalX = x + offset.x;
+            const finalY = y + offset.y;
+            follower.setPosition(finalX, finalY);
+        });
+    }
+
+    flatten(leaderId) {
+        const flatMap = new Map();
+
+        flatMap.set(leaderId,this.clone());
+        
+        this.followers.forEach((value,id) => {
+            const { follower } = value;
+            const clone = follower.clone();
+            flatMap.set(id,clone);
+        });
+        return flatMap;
+    }
+}
+module.exports = { Lobby, User, Host, GameObject, Hitbox, GameObjectBuilder, Vector, LeaderObject };

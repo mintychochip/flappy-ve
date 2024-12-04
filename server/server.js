@@ -57,8 +57,7 @@ io.on("connection", (socket) => {
     if(!session) {
       return;
     }
-    session.handleDrive(playerId);
-    io.to(sessionId).emit('player-drive',playerId);
+    session.handleDrive(io,playerId);
   });
 });
 
