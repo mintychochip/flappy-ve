@@ -83,13 +83,15 @@ class Session {
     this.objects = objects;
   }
 
-  join(socket, playerId, playerName) {
+  join(socket, playerName) {
     socket.join(this.sessionId);
     const player = createPlayer(
       new Vector(100, config.screenHeight / 2),
       playerName
     );
+    const playerId = uuidv4();
     this.objects.set(playerId, player);
+    return playerId;
   }
 
   interval() {

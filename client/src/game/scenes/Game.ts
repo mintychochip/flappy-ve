@@ -3,7 +3,6 @@ import { EventBus } from "../EventBus";
 import { Vector, ClientGameObject } from "../ClientModels";
 
 /*TODO:
-- Render Background Scene
 - Opacity if you're not main player, providing localplayerid to client
 - Collision
 */
