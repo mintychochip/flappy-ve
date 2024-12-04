@@ -4,33 +4,47 @@ import { Vector, ClientGameObject } from "../ClientModels";
 
 /*TODO:
 - Render Background Scene
+- Opacity if you're not main player, providing localplayerid to client
+- Collision
 */
 
-class RenderObject {
-    constructor(
-        public readonly sprite: Phaser.Physics.Arcade.Sprite,
-        public meta: ClientGameObject,
-    ) {}
+interface RenderObject {
+    sprite: Phaser.Physics.Arcade.Sprite
+    meta: ClientGameObject
+}
+interface Positionable {
+    setPosition(x: number, y: number): this;
 }
 export class Game extends Scene {
     private maxTiltAngle: number = 40;
     private renderedObjects: Map<string, RenderObject> = new Map();
-
     private lerpSet: Set<string> = new Set();
     constructor() {
         super("Game");
     }
 
     preload() {
-        this.load.atlas("bus", "assets/bus.png", "assets/bus.json");
-        this.load.image("pipe", "assets/pipe-green.png");
+        this.load.setPath('assets');
+        this.load.atlas("bus", "bus.png", "bus.json");
+        this.load.image("pipe", "pipe-green.png");
+        this.load.image('background','background-night.png');
     }
 
+    background() {
+        const vh = this.cameras.main.height;
+        const image = this.add.image(0, 0, 'background');
+        const scale = vh / image.height;
+        const bg = this.add.tileSprite(0, 0, this.cameras.main.width, vh, 'background');
+
+        bg.setOrigin(0, 0);
+        bg.setScale(scale);
+    }
+    
     update() {
         const lerpFactor = 0.05;
         this.renderedObjects.forEach((object, id) => {
             if (object) {
-                const {position, type,velocity } = object.meta;
+                const { position, type, velocity } = object.meta;
                 const { sprite } = object;
                 if (this.lerpSet.has(id)) {   
                     const x = this.lerp(sprite.x, position.x, lerpFactor);
@@ -47,7 +61,7 @@ export class Game extends Scene {
                     } else if (velocity.y < 0) {
                         target = Phaser.Math.DegToRad(-this.maxTiltAngle);
                     }
-                    sprite.rotation =  this.lerp(sprite.rotation,target,0.01);
+                    sprite.rotation = this.lerp(sprite.rotation,target,0.02);
                 }
             }
         });
@@ -58,6 +72,8 @@ export class Game extends Scene {
     }
 
     create() {
+
+        this.background();
         const busFrames = this.anims.generateFrameNames("bus", {
             start: 0,
             end: 3,
@@ -92,48 +108,32 @@ export class Game extends Scene {
             if (!player) {
                 return;
             }
-            console.log(playerId);
             player.sprite.anims.play("drive");
         });
     }
     render(objectId: string, obj: ClientGameObject, lerp: boolean): void {
-        let object = this.renderedObjects.get(objectId);
-
-        if (!object) {
-            object = this.createRender(obj);
-            if (object) this.renderedObjects.set(objectId, object);
-        }
-
+        let object = this.renderedObjects.get(objectId) || this.createRender(obj);
+        
         if (object) {
+            this.renderedObjects.set(objectId, object);
             object.meta = obj;
-            if (!lerp) {
-                this.lerpSet.delete(objectId);
-            } else {
-                this.lerpSet.add(objectId);
-            }
+            lerp ? this.lerpSet.add(objectId) : this.lerpSet.delete(objectId);
         }
     }
 
     createRender(object: ClientGameObject): RenderObject | undefined {
         const { x, y } = object.position;
         const { type } = object;
-        if (type === "pipe") {
-            return new RenderObject(
-                this.physics.add.sprite(x, y, "pipe").setImmovable(true),
-                object,
-            );
+        if (type.includes('pipe')) {
+            console.log(object);
+           return { sprite: this.physics.add.sprite(x, y, "pipe").setImmovable(true).setAngle(object.rotation), meta: object};
         }
         if (type === "player") {
-            const group = new LeaderGroup(this, x, y, "bus").addFollower(
-                this.add.text(x, y, object.name),
-                new Vector(-20, -50),
-            );
-            return new RenderObject(group, object);
+            const sprite = new LeaderGroup(this, x, y, "bus").addFollower(
+                this.add.text(x, y, object.name), {x:-20,y:-50});
+            return {sprite, meta: object};
         }
     }
-}
-interface Positionable {
-    setPosition(x: number, y: number): this;
 }
 class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
     private followers: Map<Positionable, Vector> = new Map();
