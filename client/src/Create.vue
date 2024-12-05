@@ -29,12 +29,10 @@ const props = defineProps({
         required: true,
     }
 });
-const localPlayerId = ref(props.playerId);
 const localSessionId = ref(props.sessionId);
 const playerId = inject('uuid') as string;
 const socketService: any = inject("$socket");
-const playerId = 
-const joinRoom = () => { 
+const joinRoom = () => {   
     // Emit the 'join-room' event with room_id and handle callback
     const data = {
         sessionId: localSessionId.value,

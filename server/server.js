@@ -62,14 +62,14 @@ io.on("connection", (socket) => {
     if(!session) {
       return;
     }
-    const playerId = session.join(socket,playerId,playerName);
+    const playerId = session.join(socket,playerName);
     console.log(`Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`)
     if(callback) {
-      callback({ sessionId, playerId, playerName });
+      callback({ sessionId, playerId });
     }
   });
-  socket.on('drive',(response) => {
-    const { sessionId, playerId } = response;
+  socket.on('drive',(data) => {
+    const { sessionId, playerId } = data;
     const session = manager.getSession(sessionId);
     if(!session) {
       return;

@@ -4,59 +4,45 @@
       <!-- Input for Lobby ID -->
       <el-input style="width: 240px" v-model="localSessionId" maxlength="6" size="large" type="text" placeholder="Enter Lobby ID"
       class="input-field"></el-input>
-      <!-- <el-input style="width: 240px" v-model="playerName" maxlength="6" size="large" type="text" placeholder="Enter Lobby ID"
-      class="input-field"></el-input> -->
+      <el-input style="width: 240px" v-model="localPlayerName" maxlength="16" size="large" type="text" placeholder="Player Name"
+      class="input-field"></el-input>
       
       <!-- Spacer between input and button -->
       <div class="spacer">
-        <el-button v-if="localSessionId && localSessionId.length === 6" type="primary" @click="joinRoom" size="large" round>Join</el-button>
+        <el-button v-if="localSessionId && localSessionId.length === 6 && localPlayerName" type="primary" @click="joinRoom" size="large" round>Join</el-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, Ref, ref, watch } from "vue";
+import { inject, ref } from "vue";
 import { useRouter } from 'vue-router'
-import { ElMessage } from "element-plus";
 
 const router = useRouter(); 
 const emit = defineEmits();
-const props = defineProps({
-  sessionId: {
-    type: String,
-    required: true,
-  }
-});
-const localSessionId = ref(props.sessionId);
-const playerId = inject('uuid') as string;
+const localPlayerName = ref()
+const localSessionId = ref();
 const socketService: any = inject("$socket");
 const joinRoom = () => { 
-  // Emit the 'join-room' event with room_id and handle callback
   const data = {
     sessionId: localSessionId.value,
-    playerId:  playerId,
-    playerName: 'Test'
+    playerName: localPlayerName.value
   }
-  console.log(`session id FIRST Local: ${localSessionId.value}`);
-  console.log(playerId);
-  socketService.getSocket().emit('join-room', data, (response: {sessionId:string, playerName: string}) => {
-    emit('update:sessionId',response.sessionId);
-    ElMessage({
-      message: `Joined ${localSessionId.value}`,
-      type: 'success',
-      duration: 500
-    });
+
+  socketService.getSocket().emit('join-room', data, (response: any) => {
+    const { sessionId, playerId } = response as { sessionId: string, playerId: string };
+    emit('update:sessionId',sessionId);
+    if(!sessionId || !playerId) {
+      return;
+    }
+    sessionStorage.setItem('sessionId',sessionId);
+    sessionStorage.setItem('playerId',playerId);
     router.push({
-      path: '/game',
-      query: { 
-        sessionId: response.sessionId,
-        playerId: response.playerId,
-       },
+      path: '/game'
     });
   });
 }
-onMounted(() => { });
 </script>
 
 <style scoped>

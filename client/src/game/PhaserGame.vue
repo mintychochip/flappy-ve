@@ -21,23 +21,22 @@ const serverListeners = () => {
         EventBus.emit('player-drive',playerId);
     })
 }
-const sessionId = inject('sessionId') as Ref<string | null>;
-    const playerId = inject('uuid') as string;
+const sessionId = sessionStorage.getItem('sessionId');
+const playerId = sessionStorage.getItem('playerId');
 onMounted(() => {
 
     game.value = StartGame('game-container');
-
     EventBus.on('current-scene-ready', (scene_instance: Phaser.Scene) => {
         emit('current-active-scene', scene_instance);
         scene.value = scene_instance;
     });
 
     EventBus.on('drive', () => {
-        if (!sessionId || !sessionId.value) { // Check if sessionId and its value are valid
+        if (!sessionId) { // Check if sessionId and its value are valid
             return;
         }
         const data = {
-            sessionId: sessionId.value,
+            sessionId: sessionId,
             playerId: playerId,
         }
         socketService.getSocket().emit('drive',data);

@@ -3,10 +3,9 @@ import { EventBus } from "../EventBus";
 import { Vector, ClientGameObject } from "../ClientModels";
 
 /*TODO:
-- Opacity if you're not main player, providing localplayerid to client
 - Collision
 */
-
+const ENEMY_ALPHA = 0.5;
 interface RenderObject {
     sprite: Phaser.Physics.Arcade.Sprite
     meta: ClientGameObject
@@ -18,8 +17,10 @@ export class Game extends Scene {
     private maxTiltAngle: number = 40;
     private renderedObjects: Map<string, RenderObject> = new Map();
     private lerpSet: Set<string> = new Set();
+    private readonly playerId: string | null;
     constructor() {
         super("Game");
+        this.playerId = sessionStorage.getItem('playerId');
     }
 
     preload() {
@@ -111,7 +112,7 @@ export class Game extends Scene {
         });
     }
     render(objectId: string, obj: ClientGameObject, lerp: boolean): void {
-        let object = this.renderedObjects.get(objectId) || this.createRender(obj);
+        let object = this.renderedObjects.get(objectId) || this.createRender(objectId, obj);
         
         if (object) {
             this.renderedObjects.set(objectId, object);
@@ -120,16 +121,18 @@ export class Game extends Scene {
         }
     }
 
-    createRender(object: ClientGameObject): RenderObject | undefined {
+    createRender(objectId: string, object: ClientGameObject): RenderObject | undefined {
         const { x, y } = object.position;
         const { type } = object;
         if (type.includes('pipe')) {
-            console.log(object);
            return { sprite: this.physics.add.sprite(x, y, "pipe").setImmovable(true).setAngle(object.rotation), meta: object};
         }
         if (type === "player") {
             const sprite = new LeaderGroup(this, x, y, "bus").addFollower(
-                this.add.text(x, y, object.name), {x:-20,y:-50});
+                this.add.text(x, y, object.name), {x:-15,y:-40});
+            if(!this.playerId || objectId !== this.playerId) {
+                sprite.setAlpha(ENEMY_ALPHA);
+            }
             return {sprite, meta: object};
         }
     }
