@@ -36,7 +36,7 @@ app.use("/api", routes(lobbyService));
 const manager = new SessionManager(io);
 const id = generateRoomId();
 console.log(id);
-manager.start(id,20);
+manager.start(id,32);
 io.on("connection", (socket) => {
   socket.on("create-room", (args) => {
     const {  } = args;

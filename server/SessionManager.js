@@ -6,70 +6,89 @@ const {
   GameObject,
   LeaderObject,
 } = require("./src/Models");
-const config = {
-  screenWidth: 1024,
-  screenHeight: 768,
-  pipe: {
-    width: 52,
-    height: 456,
-    // vh + h/6
-    maxY: 844,
-    minY: 540,
-  },
-  player: {
-    width: 58,
-    height: 22,
-  },
-  count: 4,
-};
 
-function minValidPipeHeight(spacer, viewportHeight) {
-  return (3 * (viewportHeight - spacer)) / 4;
-}
-
-function createPipe(type, origin) {
-  return new GameObjectBuilder(type)
-    .setPosition(origin)
-    .setVelocity(new Vector(-20, 0))
-    .setWidth(52)
-    .setHeight(456);
-}
-
-function createPlayer(origin, name) {
-  return new GameObjectBuilder("player")
-    .setBounded(true)
-    .setGravity(70)
-    .setName(name)
-    .setWidth(58)
-    .setHeight(22)
-    .setPosition(origin)
-    .build();
-}
-
-function random(max, min) {
-  return Math.random() * (max - min) + min;
-}
-
-function calculatePipeGap() {
-  return (
-    (config.screenWidth - config.count * config.pipe.width) / (config.count - 1)
-  );
-}
-const createPipes = () => {
-  const width = config.screenWidth;
-  const pipeGap = calculatePipeGap();
-  const pipes = new Map();
-  for (let i = 0; i < config.count; i++) {
-    const pipeX = width + pipeGap + i * (config.pipe.width + pipeGap);
-    const pipeY = random(config.pipe.maxY, config.pipe.minY);
-
-    const origin = new Vector(pipeX, pipeY);
-    const pipe = createPipe("pipe", origin);
-    const object = new LeaderObject(pipe).addFollower(uuidv4(),createPipe('pipe',new Vector(origin.x,origin.y)).setRotation(180).build(),new Vector(0,-160 - config.pipe.height));
-    pipes.set(uuidv4(), object);
+class PipeFactory {
+  constructor(initialVelocity, pipeDimensions) {
+    this.initialVelocity =initialVelocity;
+    this.pipeDimensions = pipeDimensions;
   }
-  return pipes;
-};
+
+  createPipe(origin) {
+    return new GameObjectBuilder('pipe')
+    .setPosition(origin)
+    .setVelocity(this.initialVelocity)
+    .setDimensions(this.pipeDimensions);
+  }
+
+  /**
+   * 
+   * @param {SessionConfig} sessionConfig 
+   */
+  createPipes(sessionConfig) {
+    const {viewportWidth} = sessionConfig;
+    const {x,y} = this.pipeDimensions;
+    const pipeGap = sessionConfig.pipeGap(x);
+    
+    const pipes = new Map();
+    for(let i = 0; i < sessionConfig.pipeCount; i++) {
+      const pipeX = viewportWidth + pipeGap + i (x + pipeGap);
+      const pipeY = sessionConfig.randomPipeY(y);
+      
+      const origin = new Vector(pipeX,pipeY);
+      const delegate = this.createPipe(origin);
+
+      const pipe = new LeaderObject(delegate).addFollower(uuidv4(),this.createPipe(origin)
+        .setRotation(180)
+        .build(), new Vector(0,-sessionConfig.pipeSpacer - y));
+
+      pipes.set(uuidv4(),pipe);
+    }
+    return pipes;
+  }
+}
+
+class PlayerFactory {
+  constructor(gravity, playerDimensions) {
+    this.gravity = gravity;
+    this.playerDimensions = playerDimensions;
+  }
+
+  createPlayer(origin,name) {
+    return new GameObjectBuilder("player")
+    .setBounded(true)
+    .setGravity(this.gravity)
+    .setName(name)
+    .setDimensions(this.playerDimensions)
+    .setPosition(origin)
+  }
+}
+
+class SessionConfig {
+  constructor(viewportHeight, viewportWidth, pipeSpacer, pipeCount) {
+    this.viewportHeight = viewportHeight;
+    this.viewportWidth = viewportWidth;
+    this.pipeSpacer = pipeSpacer;
+    this.pipeCount = pipeCount;
+  }
+
+  pipeGap(pipeWidth) {
+    return (this.viewportWidth - this.pipeCount * pipeWidth) / (this.pipeCount - 1);
+  }
+  pipeMaxY(pipeHeight) {
+    return this.viewportHeight + pipeHeight / 6;
+  }
+  pipeMinY(pipeHeight) {
+    return this.viewportHeight - pipeHeight / 2;
+  }  
+  randomPipeY(pipeHeight) {
+    const max = this.pipeMaxY(pipeHeight);
+    const min = this.pipeMinY(pipeHeight);
+    return Math.random() * (max - min) + min;
+  }
+}
+// function minValidPipeHeight(spacer, viewportHeight) {
+//   return (3 * (viewportHeight - spacer)) / 4;
+// }
 
 class Session {
   /**
@@ -77,7 +96,7 @@ class Session {
    * @param {number} tps
    * @param {GameObject} objects
    */
-  constructor(sessionId, tps = 20, objects) {
+  constructor(sessionId, tps = 32, objects) {
     this.sessionId = sessionId;
     this.tps = tps;
     this.objects = objects;
@@ -88,7 +107,7 @@ class Session {
     const player = createPlayer(
       new Vector(100, config.screenHeight / 2),
       playerName
-    );
+    ).build();
     const playerId = uuidv4();
     this.objects.set(playerId, player);
     return playerId;
@@ -100,9 +119,6 @@ class Session {
 
   handle(io) {
     return setInterval(() => {
-      const pipes = Array.from(this.objects.values()).filter(
-        (object) => object.type === "pipe"
-      );
       this.objects.forEach((object, objectId) => {
         const data = {
           objectId,
@@ -112,19 +128,24 @@ class Session {
         if (object.type.includes("pipe") && object instanceof LeaderObject) {
           object.update(1 / this.tps);
 
-          const objects = object.flatten(objectId);
           if (object.position.x < -2 * config.pipe.width) {
               let lowerPipeX = config.screenWidth + calculatePipeGap() - 2 * config.pipe.width;
               let lowerPipeY = random(config.pipe.maxY, config.pipe.minY);
               object.setPosition(lowerPipeX, lowerPipeY);
               data.lerp = false;
           }
+          const objects = object.flatten(objectId);
           objects.forEach((object, id) => {
             io.to(this.sessionId).emit('update',{objectId: id, object, lerp: data.lerp});
           });
         }
         if (object.type === "player") {
           object.update(1 / this.tps, config.screenWidth, config.screenHeight);
+          this.getPipes().forEach((pipe) => {
+            if(pipe.collides(object)) {
+              console.log('collision');
+            }
+          })
           io.to(this.sessionId).emit("update", data);
         }
       });
@@ -132,7 +153,9 @@ class Session {
   }
 
   getPipes() {
-    return this.objects.filter((object) => object.type === "pipe");
+    return Array.from(this.objects.values()).filter(
+      (object) => object.type === "pipe"
+    );
   }
 
   handleDrive(io,playerId) {
@@ -141,7 +164,7 @@ class Session {
     }
     io.to(this.sessionId).emit('player-drive',playerId);
     const player = this.objects.get(playerId);
-    player.velocity = new Vector(0, -30);
+    player.velocity = new Vector(0, -8);
     this.objects.set(playerId, player);
   }
 

@@ -41,7 +41,7 @@ export class Game extends Scene {
     }
     
     update() {
-        const lerpFactor = 0.05;
+        const lerpFactor = 0.5;
         this.renderedObjects.forEach((object, id) => {
             if (object) {
                 const { position, type, velocity } = object.meta;
