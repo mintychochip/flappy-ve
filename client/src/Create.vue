@@ -1,5 +1,5 @@
 <template>
-    <div class="menu">
+    <div class="online-menu">
         <div class="input-container">
             <!-- Input for Lobby ID -->
             <el-input style="width: 240px" v-model="localSessionId" maxlength="6" size="large" type="text" placeholder="Enter Lobby ID"
@@ -29,12 +29,10 @@ const props = defineProps({
         required: true,
     }
 });
-const localPlayerId = ref(props.playerId);
 const localSessionId = ref(props.sessionId);
 const playerId = inject('uuid') as string;
 const socketService: any = inject("$socket");
-const playerId = 
-const joinRoom = () => { 
+const joinRoom = () => {   
     // Emit the 'join-room' event with room_id and handle callback
     const data = {
         sessionId: localSessionId.value,
@@ -54,7 +52,7 @@ onMounted(() => { });
 </script>
 
 <style scoped>
-.menu {
+.online-menu {
     text-align: center;
     padding: 20px;
 }

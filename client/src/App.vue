@@ -1,40 +1,39 @@
-<script setup lang="ts">
-import Phaser from 'phaser';
-import { onBeforeUnmount, onMounted, provide, ref, toRaw } from 'vue';
-import { socketService } from './SocketService';
-import Menu from './Menu.vue';
-import PhaserGame from './game/PhaserGame.vue';
-import { v4 as uuidv4} from 'uuid';
-//  References to the PhaserGame component (game and scene are exposed)
-const phaserRef = ref();
-const localPlayerId = uuidv4();
-provide('uuid',localPlayerId);
-const sessionId = ref<string | null> (null);
-provide('sessionId',sessionId);
+<script setup>
+import { ref, computed } from 'vue'
+import Home from './Home.vue'
+import Game from './Game.vue'
+import NotFound from './NotFound.vue'
 
-onMounted(() => {
+
+const currentPath = ref(window.location.hash)
+
+window.addEventListener('hashchange', () => {
+  currentPath.value = window.location.hash
+})
+
+const currentView = computed(() => {
+  console.log()
+  return routes[currentPath.value.slice(1) || '/'] || NotFound
 })
 </script>
 
 <template>
-    <div id="app">
-        <Menu v-model:sessionId="sessionId"></Menu>
-        <PhaserGame v-if="sessionId" ref = "phaserRef"/>
-    </div>
+  <nav>
+    <a href="/">Ditch</a>
+  </nav>
+  <RouterView/>
 </template>
 
-<style>
-#app {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;  /* Full viewport height */
-    width: 100vw;   /* Full viewport width */
-}
-
-.container {
-    display: grid;
-    height: 100vh;
-}
-
+<style scoped>
+  nav {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 5px;
+    background-color: aqua;
+    color: gold;
+    height: 15px;
+    border: red;
+  }
 </style>

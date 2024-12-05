@@ -38,21 +38,38 @@ const id = generateRoomId();
 console.log(id);
 manager.start(id,20);
 io.on("connection", (socket) => {
+  socket.on("create-room", (args) => {
+    const {  } = args;
+    
+    // Open new room
+    const roomId = generateRoomId()
+    manager.start(roomId, 20);
 
+    // Add requesting socket to session
+    const session = manager.getSession(roomId);
+    if(!session) {
+      return;
+    }
+    session.join(socket,playerId, playerName);
+    console.log(`Socket ${socket.id} named ${playerName} joined: session ${sessionId}`)
+    if(callback) {
+        callback({ success: true });
+    }
+  });
   socket.on("join-room", (data,callback) => {
     const { sessionId, playerName } = data;
     const session = manager.getSession(sessionId);
     if(!session) {
       return;
     }
-    const playerId = session.join(socket,playerId,playerName);
-    console.log(`Socket ${socket.id} joined: ${sessionId}`)
+    const playerId = session.join(socket,playerName);
+    console.log(`Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`)
     if(callback) {
-        callback({ playerId });
+      callback({ sessionId, playerId });
     }
   });
-  socket.on('drive',(response) => {
-    const { sessionId, playerId } = response;
+  socket.on('drive',(data) => {
+    const { sessionId, playerId } = data;
     const session = manager.getSession(sessionId);
     if(!session) {
       return;
