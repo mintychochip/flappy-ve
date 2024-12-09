@@ -1,7 +1,7 @@
 <template>
     <div class="lobby">
       <h1>Lobby</h1>
-      <p><strong>Session ID:</strong> {{ sessionId }}</p>
+      <p><strong>Session ID: {{ $route.params.sessionId }}</strong></p>
       <ul>
         <li 
           v-for="player in players" 
@@ -19,18 +19,20 @@
   
   <script setup lang="ts">
   import { inject, onMounted, ref } from 'vue';
-  import { useRouter } from 'vue-router';
+  import { useRoute, useRouter } from 'vue-router';
+  import { store } from './store.ts'
   
+  const route = useRoute();
   const router = useRouter();
   const socketService = inject("$socket");
-  const sessionId = inject('sessionId') as string;
-  const playerId = inject('uuid') as string;
-  
+//   const playerId = inject('uuid') as string;
+  const sessionId = route.params.sessionId; 
   const players = ref<{ id: string, name: string }[]>([]);
   const isCreator = ref(false);
   
   const fetchPlayers = () => {
     socketService.getSocket().emit('get-players', { sessionId }, (response: { players: { id: string, name: string }[], isCreator: boolean }) => {
+      console.log(response.players);
       players.value = response.players;
       isCreator.value = response.isCreator;
     });

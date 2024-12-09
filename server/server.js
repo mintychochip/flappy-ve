@@ -38,22 +38,22 @@ const id = generateRoomId();
 console.log(id);
 manager.start(id,20);
 io.on("connection", (socket) => {
-  socket.on("create-room", (args, callback) => {
-    const { playerName } = args;
-    
+  socket.on("create-room", ( data, callback ) => {
+    const { playerName } = data;
+ 
     // Open new session/room
     const roomId = generateRoomId()
     // to refactor soon
-    manager.start(roomId, 20);
+    manager.start(roomId, 20); //this seems to start the game loop Im hoping to instantiate a session without starting game loop
 
     // Add requesting socket to session
-    const session = manager.getSession(roomId);
+    const session = manager.getSesssion(roomId);
     if(!session) return;
     const playerId = session.join(socket,playerName);
     session.join(socket,playerId, playerName);
-    console.log(`Socket ${socket.id} named ${playerName} joined: session ${roomId}`)
+       console.log(`Socket ${socket.id} named ${playerName} created: session ${roomId}`)
     if(callback) {
-        callback({ roomId });
+        callback({ roomId, playerId });
     }
   });
   socket.on("join-room", (data,callback) => {
@@ -79,7 +79,7 @@ io.on("connection", (socket) => {
     const { sessionId } = data;
     const session = manager.getSession(sessionId);
     if (!session) return;
-    const players = session.getPlayers(); // Assuming you have a method to get players
+    const players = session.getPlayerNames(); // Assuming you have a method to get players
     const isCreator = session.creatorId === socket.id;
     callback({ players, isCreator });
   });

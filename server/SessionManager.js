@@ -135,7 +135,7 @@ class Session {
     return this.objects.filter((object) => object.type === "pipe");
   }
   getPlayerNames() {
-    return this.objects.filter(objs => object.type === "player").map( player => player.name);
+    return [...this.objects.values()].filter(object => object.type === "player").map( player => player.name);
   }
   handleDrive(io,playerId) {
     if(!io || !playerId) {

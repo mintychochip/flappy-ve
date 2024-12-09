@@ -38,9 +38,7 @@ const joinRoom = () => {
     }
     sessionStorage.setItem('sessionId',sessionId);
     sessionStorage.setItem('playerId',playerId);
-    router.push({
-      path: '/game'
-    });
+router.push(`/lobby/${sessionId}`);
   });
 }
 </script>

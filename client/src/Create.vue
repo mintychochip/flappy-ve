@@ -16,14 +16,18 @@
   <script setup lang="ts">
   import { inject, ref } from "vue";
   import { useRouter } from 'vue-router'
+  import { store } from './store.ts'
   
   const router = useRouter(); 
   const emit = defineEmits();
   const localPlayerName = ref()
   const socketService: any = inject("$socket");
   const createRoom = () => {
-    socketService.getSocket().emit('create-room', { playerName: localPlayerName }, (response: { roomId: string }) => {
-        const { roomId } = response;
+    socketService.getSocket().emit('create-room', { playerName: localPlayerName.value }, (response: { roomId: string, playerId: string }) => {
+        const { roomId, playerId } = response;
+        emit('update:sessionId',roomId);
+        emit('update:uuid', playerId);
+        store.uuid = playerId;
         router.push(`/lobby/${roomId}`);
     });
   }; 
