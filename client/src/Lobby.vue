@@ -2,7 +2,7 @@
     <div>
         <Card class="w-2/3 mx-auto">
             <CardHeader>
-                <CardTitle class="text-2x1">Session</CardTitle>
+                <CardTitle class="text-2x1">Session: {{ $route.query.id }}</CardTitle>
             </CardHeader>
             <CardContent>
                 <Tabs default-value="players">
