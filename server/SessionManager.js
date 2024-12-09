@@ -227,12 +227,9 @@ class SessionHandler {
     this.handlerId = null;
   }
 
-  start(playerId, dispatch) {
+  start(dispatch) {
     if (this.handlerId || !this.session) {
       return this;
-    }
-    if(this.session.hostId !== playerId) {
-      return;
     }
     const { settings, config } = this.session;
     const pipeGap = calculatePipeGap(settings,config);
@@ -341,10 +338,13 @@ class SessionManager {
     return true;
   }
   
-  // start(sessionId, playerId) {
-  //   const handler = this.handlers.get(sessionId);
-  //   handler.start(playerId, new SessionDispatch(this.io, sessionId));
-  // }
+  start(sessionId, playerId) {
+    if(!(this.handlers.has(sessionId) && this.hosts.has(playerId))) {
+      return;
+    }
+    const handler = this.handlers.get(sessionId);
+    handler.start(new SessionDispatch(this.io, sessionId));
+  }
 
   getHandler(sessionId) {
     const handler = this.handlers.get(sessionId);

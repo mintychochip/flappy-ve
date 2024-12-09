@@ -20,6 +20,20 @@ const sessionSettings = new SessionSettings(
  * @param {DatabaseService} databaseService
  */
 module.exports = (sessionManager, databaseService) => {
+  router.post("/session/start", authenticate, async(req,res) => {
+    const { sessionId, userToken } = req.body;
+    try {
+      const { id: userId } = jwt.decode(userToken);
+      console.log(userId);
+      if(!userId) {
+        return res.status(400).json({ error: "Token was not provided. "});
+      }
+      sessionManager.start(sessionId, userId);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ err });
+    }
+  })
   router.post("/session", authenticate, async (req, res) => {
     const { config, token } = req.body;
     try {
@@ -113,7 +127,7 @@ module.exports = (sessionManager, databaseService) => {
       res.status(401).json({ err });
     }
   });
-  router.post("/login", async (req, res) => {
+  router.post("/user/login", async (req, res) => {
     const { name, password } = req.body;
 
     if (!name || !password) {

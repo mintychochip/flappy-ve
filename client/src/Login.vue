@@ -1,6 +1,6 @@
 
 <template>
-    <div class="flex items-center justify-center min-h-screen">
+    <div class="flex items-center justify-center min-h-screen">  
             <Card>
             <CardHeader>
                 <CardTitle>Login</CardTitle>
@@ -31,6 +31,12 @@
     </div>
 </template>
 <script setup lang="ts">
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button'
 import {
     Card,
@@ -47,6 +53,8 @@ import { useToast } from '@/components/ui/toast'
 import {inject, ref} from 'vue'
 import router from './router'
 
+const localPassword = ref<string>();
+const localUsername = ref<string>();
 const { toast } = useToast();
 const apiUrl = inject('api-url') as string;
 
@@ -57,14 +65,41 @@ const handleSubmit = async (e: SubmitEvent) => {
     }
     
     if(e.submitter?.name === 'signup') {
+        await handleSignUp();
     } else {
         await handleLogin();
     }
 }
+const handleSignUp = async () => {
+    try {
+        const response = await fetch(`${apiUrl}/api/user`, {
+            method: 'POST',
+            headers: {
+                "Content-Type" :"application/json",
+            },
+            body: JSON.stringify({
+                name: localUsername.value,
+                password: localPassword.value
+            })
+        })
 
+        if(!response.ok) {
+            const err = await response.json();
+            console.error(err);
+            return;
+        }
+
+        toast({
+            title: 'User has been created',
+            duration: 3000
+        })
+    } catch (err) {
+        console.error(err);
+    }
+}
 const handleLogin = async () => {
     try {
-        const response = await fetch(`${apiUrl}/api/login`, {
+        const response = await fetch(`${apiUrl}/api/user/login`, {
             method: 'POST',
             headers: {
                 "Content-Type": "application/json",
@@ -100,6 +135,4 @@ const handleLogin = async () => {
         console.error(err);
     }
 }
-const localUsername = ref<string>();
-const localPassword = ref<string>();
 </script>
