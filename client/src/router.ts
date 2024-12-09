@@ -10,7 +10,7 @@ import Lobby from "./Lobby.vue";
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 async function checkToken(token:string): Promise<boolean> {
-     const response = await fetch(`${VITE_API_BASE_URL}/api/verify-token`, {
+     const response = await fetch(`${VITE_API_BASE_URL}/api/user/verify`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,

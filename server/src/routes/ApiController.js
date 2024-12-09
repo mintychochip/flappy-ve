@@ -20,7 +20,6 @@ const sessionSettings = new SessionSettings(
  * @param {DatabaseService} databaseService
  */
 module.exports = (sessionManager, databaseService) => {
-
   router.post("/session", authenticate, async (req, res) => {
     const { config, token } = req.body;
     try {
@@ -90,12 +89,23 @@ module.exports = (sessionManager, databaseService) => {
       return res.status(500).json({ err });
     }
   });
-  router.post("/verify-token", async (req, res) => {
-    const token = req.headers["authorization"]?.split(" ")[1];
-    if (!token) {
-      return res.status(400).json({ error: "token is required" });
+  router.post("/user/decode", authenticate, async(req,res) => {
+    const token = req.headers['authorization']?.split(" ")[1];
+    if(!token) {
+      return res.status(400).json({ error: "token is required"});
     }
-
+    try {
+      const decoded = jwt.decode(token);
+      res.status(200).json({ user: decoded });
+    } catch (err) {
+      res.status(401).json({ err });
+    }
+  });
+  router.post("/user/verify", authenticate, async(req,res) => {
+    const token = req.headers['authorization']?.split(" ")[1];
+    if(!token) {
+      return res.status(400).json({ error: "token is required"});
+    }
     try {
       const decoded = jwt.verify(token, SECRET);
       res.status(200).json({ user: decoded });

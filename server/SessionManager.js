@@ -73,16 +73,17 @@ function createPipes(settings,config) {
 /**
  * 
  * @param {string} playerName 
+ * @param {SessionSettings} sessionSettings
  * @param {SessionConfig} sessionConfig 
  * @returns 
  */
-function createPlayer(playerName, sessionConfig) {
+function createPlayer(playerName, sessionSettings, sessionConfig) {
   return new GameObjectBuilder("player")
     .setBounded(true)
     .setGravity(sessionConfig.playerGravity)
     .setName(playerName)
-    .setDimensions(sessionConfig.playerDimensions)
-    .setPosition(sessionConfig.playerOrigin);
+    .setDimensions(sessionSettings.playerDimensions)
+    .setPosition(sessionSettings.playerOrigin);
 }
 class SessionSettings {
   /**
@@ -175,7 +176,7 @@ class Session {
     if(this.objects.has(user.id)) {
       return;
     }
-    const player = createPlayer(user.name,this.config).build();
+    const player = createPlayer(user.name,this.settings, this.config).build();
       this.objects.set(user.id,player);
   }
 
@@ -297,7 +298,7 @@ class SessionManager {
   createSession(settings, config, playerId) {
     if(this.hosts.has(playerId)) {
       const sessionId = this.hosts.get(playerId);
-      throw new Error(`Player is hosting session ${sessionId}`);
+      throw new Error(`Player is already hosting session ${sessionId}`);
     }
     const session = new Session(config, settings);
     const handler = new SessionHandler(session);
@@ -340,10 +341,10 @@ class SessionManager {
     return true;
   }
   
-  start(sessionId, playerId) {
-    const handler = this.handlers.get(sessionId);
-    handler.start(playerId, new SessionDispatch(this.io, sessionId));
-  }
+  // start(sessionId, playerId) {
+  //   const handler = this.handlers.get(sessionId);
+  //   handler.start(playerId, new SessionDispatch(this.io, sessionId));
+  // }
 
   getHandler(sessionId) {
     const handler = this.handlers.get(sessionId);

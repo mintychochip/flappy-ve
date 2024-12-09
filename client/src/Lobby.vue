@@ -2,7 +2,18 @@
     <div>
         <Card class="w-2/3 mx-auto">
             <CardHeader>
-                <CardTitle class="text-2x1">Session</CardTitle>
+                <div class="flex justify-between items-center">
+                    <!-- Title -->
+                    <CardTitle class="text-2xl">
+                        {{ sessionHost?.name || 'Unknown' }}'s Lobby
+                    </CardTitle>
+
+                    <!-- Buttons -->
+                    <div class="flex space-x-2">
+                        <Button>Refresh Players</Button>
+                        <Button class="bg-green-500" v-if="sessionHost && client && sessionHost.id === client.id">Start</Button>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <Tabs default-value="players">
@@ -12,7 +23,12 @@
                     </TabsList>
                     <TabsContent value="players">
                         <ScrollArea class="h-2/3 w-full border rounded-md p-4">
-
+                            <div v-for="player in clientPlayers" :key="player.type" class="flex">
+                                <RocketLaunchIcon class="w-6 h-6"></RocketLaunchIcon>
+                                <div class="text-large">
+                                    {{ player?.name }}
+                                </div>
+                            </div>
                         </ScrollArea>
                     </TabsContent>
                 </Tabs>
@@ -23,6 +39,7 @@
 
 <script setup lang="ts">
 import { inject, onMounted, ref } from 'vue';
+import { RocketLaunchIcon } from '@heroicons/vue/24/solid'
 import {
     Card,
     CardContent,
@@ -38,25 +55,66 @@ import {
     TabsTrigger,
 } from '@/components/ui/tabs'; import { Button } from '@/components/ui/button'
 import ScrollArea from './components/ui/scroll-area/ScrollArea.vue';
-import { Route } from 'lucide-vue-next';
 import { useRoute } from 'vue-router';
 import router from './router';
-const socket: any = inject('$socket');
-const players = [
-    { id: 1, name: "Player 1", isReady: true, isHost: true },
-    { id: 2, name: "Player 2", isReady: false, isHost: false },
-    { id: 3, name: "Player 3", isReady: true, isHost: false },
-    { id: 4, name: "Player 4", isReady: false, isHost: false },
-]
+import { GameObject } from './game/ClientModels';
 const apiUrl = inject('api-url') as string;
 const route = useRoute();
-const sessionId = ref<string|undefined>();
-onMounted(async () => {
-    sessionId.value = route.query.id as string;
-    if (!sessionId.value) {
-        router.push('/');
+const sessionId = ref<string>();
+
+interface User {
+    id: string,
+    name: string
+}
+
+interface Session {
+    objects: Map<string, GameObject>
+}
+const sessionHost = ref<User | null>();
+const sessionMeta = ref<Session | null>();
+const clientPlayers = ref<GameObject[] | null>();
+const client = ref<User>();
+
+const fetchPlayers = async () => {
+    const { host, session } = await fetchSessionData();
+    sessionHost.value = host;
+    sessionMeta.value = session;
+    clientPlayers.value = await playersInSession();
+}
+const playersInSession = async (): Promise<GameObject[] | null> => {
+    if (!sessionMeta.value) {
+        return null;
+    }
+    return Object.entries(sessionMeta.value.objects)
+        .filter(([id, object]) => (object as GameObject).type === 'player')
+        .map(([id, object]) => object);
+}
+const fetchClientData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('token is required');
+    }
+    const response = await fetch(`${apiUrl}/api/user/decode`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer: ${token}`
+        }
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        console.error(err);
+        return;
     }
 
+    const { user } = await response.json();
+    if (!user) {
+        throw new Error('A user was not found in the response.');
+    }
+    return user;
+}
+const fetchSessionData = async (): Promise<{ host: User | null; session: Session | null }> => {
     try {
         const response = await fetch(`${apiUrl}/api/session/${sessionId.value}`, {
             method: 'GET',
@@ -64,18 +122,32 @@ onMounted(async () => {
                 "Content-Type": "application/json"
             }
         });
-        
-        if(!response.ok) {
+
+        if (!response.ok) {
             router.push('/');
-            return;
+            return { host: null, session: null }
         }
 
         const data = await response.json();
-        if(!data) {
+        if (!data) {
             router.push('/');
         }
+        return { host: data.host, session: data.session }
+
     } catch (err) {
         console.error(err);
+        return { host: null, session: null }
     }
+}
+onMounted(async () => {
+    sessionId.value = route.query.id as string;
+    if (!sessionId.value) {
+        router.push('/');
+    }
+    const { host, session } = await fetchSessionData();
+    sessionHost.value = host;
+    sessionMeta.value = session;
+    clientPlayers.value = await playersInSession();
+    client.value = await fetchClientData();
 });
 </script>
