@@ -1,10 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
-import Home from './Home.vue'
+import { ref, computed, provide } from 'vue'
 import Game from './Game.vue'
-import NotFound from './NotFound.vue'
+import Toaster from './components/ui/toast/Toaster.vue';
 
-
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+provide('api-url',VITE_API_BASE_URL);
 const currentPath = ref(window.location.hash)
 
 window.addEventListener('hashchange', () => {
@@ -13,15 +13,14 @@ window.addEventListener('hashchange', () => {
 
 const currentView = computed(() => {
   console.log()
-  return routes[currentPath.value.slice(1) || '/'] || NotFound
 })
 </script>
 
 <template>
-  <nav>
-    <a href="/">Ditch</a>
-  </nav>
-  <RouterView/>
+  <div class="fixed inset-0 bg-gray-900 dark:bg-gray-800">
+    <Toaster/>
+    <RouterView/>
+  </div>
 </template>
 
 <style scoped>

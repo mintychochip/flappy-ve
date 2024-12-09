@@ -1,14 +1,11 @@
 import { GameObjects, Scene } from "phaser";
 import { EventBus } from "../EventBus";
-import { Vector, ClientGameObject } from "../ClientModels";
+import { Vector, GameObject } from "../ClientModels";
 
-/*TODO:
-- Collision
-*/
 const ENEMY_ALPHA = 0.5;
 interface RenderObject {
     sprite: Phaser.Physics.Arcade.Sprite
-    meta: ClientGameObject
+    meta: GameObject
 }
 interface Positionable {
     setPosition(x: number, y: number): this;
@@ -72,7 +69,6 @@ export class Game extends Scene {
     }
 
     create() {
-
         this.background();
         const busFrames = this.anims.generateFrameNames("bus", {
             start: 0,
@@ -90,18 +86,7 @@ export class Game extends Scene {
 
         this.input.keyboard?.on('keydown-SPACE',() => {
             EventBus.emit('drive');
-        })
-
-        EventBus.on(
-            "update",
-            (data: {
-                objectId: string;
-                object: ClientGameObject;
-                lerp: boolean;
-            }) => {
-                this.render(data.objectId, data.object, data.lerp);
-            },
-        );
+        });
 
         EventBus.on("player-drive", (playerId: string) => {
             const player = this.renderedObjects.get(playerId);
@@ -111,7 +96,7 @@ export class Game extends Scene {
             player.sprite.anims.play("drive");
         });
     }
-    render(objectId: string, obj: ClientGameObject, lerp: boolean): void {
+    render(objectId: string, obj: GameObject, lerp: boolean): void {
         let object = this.renderedObjects.get(objectId) || this.createRender(objectId, obj);
         
         if (object) {
@@ -121,7 +106,7 @@ export class Game extends Scene {
         }
     }
 
-    createRender(objectId: string, object: ClientGameObject): RenderObject | undefined {
+    createRender(objectId: string, object: GameObject): RenderObject | undefined {
         const { x, y } = object.position;
         const { type } = object;
         if (type.includes('pipe')) {

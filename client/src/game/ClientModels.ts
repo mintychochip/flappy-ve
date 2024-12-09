@@ -1,4 +1,4 @@
-export interface ClientGameObject {
+export interface GameObject {
     type: string
     position: Vector
     velocity: Vector
@@ -10,6 +10,7 @@ export interface ClientGameObject {
     }
     rotation: number
 }
+
 export interface Vector {
     x: number
     y: number

@@ -3,6 +3,7 @@ import { inject, onMounted, onUnmounted, Ref, ref } from 'vue';
 import { EventBus } from './EventBus';
 import StartGame from './main';
 import Phaser from 'phaser';
+import {Game as MainGame} from './scenes/Game'
 // Save the current scene instance
 
 const scene = ref();
@@ -11,8 +12,21 @@ const socketService: any = inject('$socket');
 const emit = defineEmits(['current-active-scene']);
 const serverListeners = () => {
     socketService.getSocket().on('update', (object: any) => {
-        EventBus.emit('update', object);
+        if(scene.value instanceof MainGame) {
+            scene.value.render({object});
+        }
     });
+
+    EventBus.on(
+            "update",
+            (data: {
+                objectId: string;
+                object: ClientGameObject;
+                lerp: boolean;
+            }) => {
+                this.render(data.objectId, data.object, data.lerp);
+            },
+        );
 
     /**
      * Called when another player drives, to animate their spirte

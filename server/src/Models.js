@@ -1,43 +1,18 @@
-class Lobby {
-    /**
-     *
-     * @param {number} id
-     * @param {string} name
-     * @param {number} max_count
-     */
-    constructor(id, name, max_count) {
-        this.id = id;
-        this.name = name;
-        this.max_count = max_count;
-    }
-}
-
 class User {
     /**
-     *
-     * @param {string} socket_id
-     * @param {string} name
-     * @param {number} lobby_id //nullable
+     * 
+     * @param {string} name 
+     * @param {string} password
+     * @param {number} join_date 
+     * @param {string} id 
      */
-    constructor(socket_id, name, lobby_id) {
-        this.socket_id = socket_id;
+    constructor(name, password, timestamp, id) {
         this.name = name;
-        this.lobby_id = lobby_id;
+        this.password = password;
+        this.timestamp = timestamp;
+        this.id = id;
     }
 }
-
-class Host {
-    /**
-     *
-     * @param {string} host_id
-     * @param {number} lobby_id
-     */
-    constructor(host_id, lobby_id) {
-        this.host_id = host_id;
-        this.lobby_id = lobby_id;
-    }
-}
-
 class Vector {
     constructor(x, y) {
         this.x = x;
@@ -213,4 +188,4 @@ class LeaderObject extends GameObject {
         return flatMap;
     }
 }
-module.exports = { Lobby, User, Host, GameObject, GameObjectBuilder, Vector, LeaderObject };
+module.exports = { User, GameObject, GameObjectBuilder, Vector, LeaderObject };
