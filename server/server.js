@@ -38,35 +38,55 @@ const id = generateRoomId();
 console.log(id);
 manager.start(id,20);
 io.on("connection", (socket) => {
-  socket.on("create-room", (args) => {
-    const {  } = args;
+  socket.on("create-room", (args, callback) => {
+    const { playerName } = args;
     
-    // Open new room
+    // Open new session/room
     const roomId = generateRoomId()
+    // to refactor soon
     manager.start(roomId, 20);
 
     // Add requesting socket to session
     const session = manager.getSession(roomId);
-    if(!session) {
-      return;
-    }
+    if(!session) return;
+    const playerId = session.join(socket,playerName);
     session.join(socket,playerId, playerName);
-    console.log(`Socket ${socket.id} named ${playerName} joined: session ${sessionId}`)
+    console.log(`Socket ${socket.id} named ${playerName} joined: session ${roomId}`)
     if(callback) {
-        callback({ success: true });
+        callback({ roomId });
     }
   });
   socket.on("join-room", (data,callback) => {
     const { sessionId, playerName } = data;
     const session = manager.getSession(sessionId);
-    if(!session) {
-      return;
-    }
+    if(!session) return; 
     const playerId = session.join(socket,playerName);
-    console.log(`Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`)
+    const playerNames = session.getPlayerNames();
+    console.log(`Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`);
+    io.to(sessionId).emit('player-joined');
     if(callback) {
-      callback({ sessionId, playerId });
+      callback({ sessionId, playerId, playerNames });
     }
+  });
+  socket.on('leave-room', (data) => {
+    const { sessionId, playerId } = data;
+    const session = manager.getSession(sessionId);
+    if (!session) return;
+    session.leave(playerId);
+    io.to(sessionId).emit('player-left');
+  });  
+  socket.on('get-players', (data, callback) => {
+    const { sessionId } = data;
+    const session = manager.getSession(sessionId);
+    if (!session) return;
+    const players = session.getPlayers(); // Assuming you have a method to get players
+    const isCreator = session.creatorId === socket.id;
+    callback({ players, isCreator });
+  });
+  socket.on('start-session', (data) => {
+    const { sessionId } = data;
+    const session = manager.getSession(sessionId);
+    manager.start(sessionId,20);
   });
   socket.on('drive',(data) => {
     const { sessionId, playerId } = data;

@@ -4,6 +4,7 @@ import Game from './Game.vue'
 import Home from "./Home.vue";
 import Create from "./Create.vue";
 import Join from "./Join.vue";
+import Lobby from "./Lobby.vue";
 import OnlineMenu from "./OnlineMenu.vue";
 import { RouteLocationNormalized } from "vue-router";
 import { RouteLocation } from "vue-router";
@@ -39,6 +40,10 @@ const routes = [
         path: '/join',
         name: 'Join',   
         component: Join,
+    },
+    {
+        path: '/lobby/:sessionId',
+        component: Lobby,
     },
     {
         path: '/online',
