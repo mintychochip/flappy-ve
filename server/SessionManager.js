@@ -81,6 +81,8 @@ class Session {
     this.sessionId = sessionId;
     this.tps = tps;
     this.objects = objects;
+    this.started = false;
+    this.creatorId = null;
   }
 
   join(socket, playerName) {
@@ -91,9 +93,20 @@ class Session {
     );
     const playerId = uuidv4();
     this.objects.set(playerId, player);
+    if (!this.creatorId) {
+      this.creatorId = socket.id; // Set the first player as the creator
+    }
     return playerId;
   }
 
+  start(io) {
+    if (this.started) {
+      return;
+    }
+    this.started = true;
+    this.handlerId = this.handle(io);
+  } 
+  
   interval() {
     return 1000 / this.tps;
   }
@@ -157,6 +170,19 @@ class SessionManager {
     this.sessions = new Map();
   }
 
+  createSession(sessionId, tps = 20) {
+    const session = new Session(sessionId, tps, new Map());
+    this.sessions.set(sessionId, session);
+  }
+  startSession(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (session && !session.started) {
+      const pipeObjects = createPipes();
+      pipeObjects.forEach((pipe, id) => session.objects.set(id, pipe));
+      session.start(this.io);
+      this.io.to(sessionId).emit('session-started');
+    }
+  }
   /**
    *
    * @param {Session} session

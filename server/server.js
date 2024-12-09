@@ -59,7 +59,10 @@ io.on("connection", (socket) => {
   socket.on("join-room", (data,callback) => {
     const { sessionId, playerName } = data;
     const session = manager.getSession(sessionId);
-    if(!session) return; 
+    if(!session) {
+      console.log(`session: ${sessionId} not found`)
+      return;
+    }
     const playerId = session.join(socket,playerName);
     const playerNames = session.getPlayerNames();
     console.log(`Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`);
@@ -87,6 +90,15 @@ io.on("connection", (socket) => {
     const { sessionId } = data;
     const session = manager.getSession(sessionId);
     manager.start(sessionId,20);
+  });
+  socket.on('start-session', (data) => {
+    const { sessionId } = data;
+    const session = manager.getSession(sessionId);
+    if (session && session.creatorId === socket.id) {
+      manager.startSession(sessionId);
+    } else {
+      socket.emit('error', 'Only the session creator can start the game.');
+    }
   });
   socket.on('drive',(data) => {
     const { sessionId, playerId } = data;
