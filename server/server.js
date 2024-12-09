@@ -54,18 +54,23 @@ const databaseService = new DatabaseService("database.db");
 app.use("/api", routes(manager, databaseService));
 
 io.on("connection", (socket) => {
-  socket.on("join-room", async (data, callback) => {
+  socket.on("join-session", async (data, callback) => {
     const { sessionId, token } = data;
+    if(!sessionId || !token) {
+      return;
+    }
     try {
       const decoded = jwt.decode(token);
       const user = await databaseService.getUserById(decoded.id);
-      manager.joinSession(sessionId, user, socket);
-      console.log(
-        `Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`
-      );
-      io.to(sessionId).emit("player-joined", { players });
-      if (callback) {
-        callback({ sessionId });
+      if(!user) {
+        return;
+      }
+      const success = manager.joinSession(sessionId, user, socket);
+      if(success) {
+        io.to(sessionId).emit("player-joined");
+        if(callback) {
+          callback({ success });
+        }
       }
     } catch (err) {
       console.log(err);

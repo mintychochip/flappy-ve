@@ -6,6 +6,7 @@ import { NavigationGuardNext } from "vue-router";
 import Login from "./Login.vue";
 
 import Dashboard from './Dashboard.vue'
+import Lobby from "./Lobby.vue";
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 async function checkToken(token:string): Promise<boolean> {
@@ -28,27 +29,19 @@ const routes = [
         path: '/',
         name: 'Dashboard',
         component: Dashboard,
-        beforeEnter: async (to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) => {
-            const token = localStorage.getItem('token');
-            if(!token || !(await checkToken(token))) {
-                next('/login');
-            } else {
-                next();
-            }
-        }
+        beforeEnter: hasToken
     },
     {
         path: '/game',
         name: 'Game',   
         component: Game,
-        beforeEnter: async (to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) => {
-            const token = localStorage.getItem('token');
-            if(!token || !(await checkToken(token))) {
-                next('/login');
-            } else {
-                next();
-            }
-        }
+        beforeEnter: hasToken
+    },
+    {
+        path: '/session',
+        name: 'Lobby',
+        component: Lobby,
+        beforeEnter: hasToken
     },
     {
         path: '/login',
@@ -56,7 +49,14 @@ const routes = [
         component: Login,
     }
 ];
-
+async function hasToken(to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) {
+    const token = localStorage.getItem('token');
+            if(!token || !(await checkToken(token))) {
+                next('/login');
+            } else {
+                next();
+            }
+}
 const router = createRouter({
     history: createWebHistory(),
     routes

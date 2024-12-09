@@ -45,6 +45,7 @@ import { Label } from '@/components/ui/label'
 import { ToastProvider } from '@/components/ui/toast'
 import { useToast } from '@/components/ui/toast'
 import {inject, ref} from 'vue'
+import router from './router'
 
 const { toast } = useToast();
 const apiUrl = inject('api-url') as string;
@@ -88,7 +89,8 @@ const handleLogin = async () => {
         const data = await response.json();
         const token = data.token;
         localStorage.setItem('token',token);
-        console.log(token);
+
+        router.push({path: '/'});
     } catch (err) {
         toast({
                 title: 'Something went wrong',

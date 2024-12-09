@@ -45,6 +45,7 @@ module.exports = (sessionManager, databaseService) => {
       sessionManager.handlers.forEach((handler,id) => {
         sessions[id] = handler.session;
       });
+
       return res.status(200).json({ sessions });
     } catch (err) {
       res.status(500).json({ err });
@@ -57,7 +58,9 @@ module.exports = (sessionManager, databaseService) => {
       if(!session) {
         return res.status(403).json({ error: "The session does not exist."});
       }
-      res.status(200).json({ session });
+      const hostId = sessionManager.getHostId(sessionId);
+      const host = await databaseService.getUserById(hostId);
+      res.status(200).json({ session, host });
     } catch (err) {
       res.status(500).json({ err });
     }

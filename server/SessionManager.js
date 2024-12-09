@@ -172,14 +172,18 @@ class Session {
    * @returns 
    */
   joinPlayer(user) {
+    if(this.objects.has(user.id)) {
+      return;
+    }
     const player = createPlayer(user.name,this.config).build();
-    this.objects.set(user.id,player);
+      this.objects.set(user.id,player);
   }
 
   removePlayer(user) {
-    if(this.objects.has(user.id)) {
-      this.objects.delete(user.id);
+    if(!this.objects.has(user.id)) {
+      return;
     }
+    this.objects.delete(user.id);
   }
   toJSON() {
     const objects = {};
@@ -308,30 +312,32 @@ class SessionManager {
    * @param {string} sessionId
    * @param {User} user
    * @param {Socket} socket
-   * @returns
+   * @returns {boolean}
    */
   joinSession(sessionId, user, socket) {
     if (!sessionId || !user) {
-      return;
+      return false;
     }
     const handler = this.handlers.get(sessionId);
     if (!handler || handler.hasStarted()) {
-      return;
+      return false;
     }
     socket.join(sessionId);
-    return handler.session.join(playerName);
+    handler.session.joinPlayer(user);
+    return true;
   }
 
   leaveSession(sessionId, user) {
     if(!sessionId || !user) {
-      return;
+      return false;
     }
     const handler = this.handlers.get(sessionId);
     if(!handler) {
-      return;
+      return false;
     }
     socket.join(sessionId);
-    return handler.session.removePlayer(user);
+    handler.session.removePlayer(user);
+    return true;
   }
   
   start(sessionId, playerId) {
@@ -342,6 +348,19 @@ class SessionManager {
   getHandler(sessionId) {
     const handler = this.handlers.get(sessionId);
     return handler;
+  }
+
+  getHostId(sessionId) {
+    if(!sessionId) {
+      return null;
+    }
+    for(let [host,session] of this.hosts) {
+      if(session === sessionId) {
+        return host;
+      }
+    }
+
+    return null;
   }
 }
 

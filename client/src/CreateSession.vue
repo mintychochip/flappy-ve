@@ -145,6 +145,7 @@ const handleCreateSession = async (e:SubmitEvent) => {
             duration: 5000
         })
     } catch (err) {
+        toast({})
         console.error(err);
     }
 
