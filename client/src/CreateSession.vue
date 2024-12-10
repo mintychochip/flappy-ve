@@ -78,10 +78,10 @@ import { Vector } from './game/ClientModels';
 import router from './router';
 import { useToast } from './components/ui/toast';
 const pipeCount = ref<number>(4);
-const pipeVelocityX = ref<number>(10);
-const playerGravity = ref<number>(50);
-const tps = ref<number>(32);
-const playerJumpVelocityY = ref<number>(20);
+const pipeVelocityX = ref<number>(20);
+const playerGravity = ref<number>(70);
+const tps = ref<number>(20);
+const playerJumpVelocityY = ref<number>(30);
 
 interface SessionConfig {
     pipeCount: number
@@ -104,14 +104,14 @@ const handleCreateSession = async (e:SubmitEvent) => {
         const config: SessionConfig = {
             pipeCount: pipeCount.value,  
             pipeVelocity: { 
-                x: -pipeVelocityX.value,  
+                x: -Math.max(0,pipeVelocityX.value),  
                 y: 0                            
             },
             playerGravity: playerGravity.value,  
             tps: tps.value,                      
             playerJumpVelocity: { 
                 x: 0,                               
-                y: -playerJumpVelocityY.value   
+                y: -Math.max(0,playerJumpVelocityY.value)  
             }
         };
         const response = await fetch(`${apiUrl}/api/session`, {

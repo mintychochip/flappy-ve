@@ -75,7 +75,16 @@ class GameObject {
         return new GameObject(this.type,this.position,this.velocity,this.name,this.gravity,this.properties,this.dimensions,this.rotation);
     }
 }
-
+class Player extends GameObject {
+    constructor(type, position, velocity, name, gravity, properties, dimensions, rotation, alive=true) {
+        super(type,position,velocity,name,gravity,properties,dimensions,rotation);
+        this.alive = alive;
+    }
+    
+    static createFromGameObject(obj) {
+        return new Player(obj.type,obj.position,obj.velocity,obj.name,obj.gravity,obj.properties,obj.dimensions,obj.rotation);
+    }
+}
 class GameObjectBuilder {
     constructor(type = 'default') {
         this.type = type;
@@ -192,4 +201,4 @@ class LeaderObject extends GameObject {
         return flatMap;
     }
 }
-module.exports = { User, GameObject, GameObjectBuilder, Vector, LeaderObject };
+module.exports = { User, GameObject, GameObjectBuilder, Vector, LeaderObject, Player };

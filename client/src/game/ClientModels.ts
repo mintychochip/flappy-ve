@@ -11,6 +11,9 @@ export interface GameObject {
     rotation: number
 }
 
+export interface Player extends GameObject {
+    alive: boolean
+}
 export interface Vector {
     x: number
     y: number

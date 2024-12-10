@@ -81,12 +81,15 @@ function createPipes(settings, config) {
  * @returns
  */
 function createPlayer(playerName, settings, config) {
-  return new GameObjectBuilder("player")
-    .setBounded(true)
-    .setGravity(config.playerGravity)
-    .setName(playerName)
-    .setDimensions(settings.playerDimensions)
-    .setPosition(settings.playerOrigin);
+  return Player.createFromGameObject(
+    new GameObjectBuilder("player")
+      .setBounded(true)
+      .setGravity(config.playerGravity)
+      .setName(playerName)
+      .setDimensions(settings.playerDimensions)
+      .setPosition(settings.playerOrigin)
+      .build()
+  );
 }
 class SessionSettings {
   /**
@@ -151,6 +154,13 @@ class Session {
     this.config = config;
     this.settings = settings;
     this.objects = createPipes(settings, config);
+    this.scores = new Map();
+  }
+
+  playersAlive() {
+    return this.getPlayers().filter(([id,player])=> {
+      return player.alive
+    });
   }
 
   handleDrive(playerId) {
@@ -159,29 +169,38 @@ class Session {
     }
     const player = this.objects.get(playerId);
     const { playerJumpVelocity } = this.config;
-    player.velocity = new Vector(playerJumpVelocity.x,playerJumpVelocity.y);
+    player.velocity = new Vector(playerJumpVelocity.x, playerJumpVelocity.y);
   }
 
   getPlayers() {
     return Array.from(this.objects.entries())
-      .filter(([id, obj]) => obj.type === "player")
-      .map(([id, obj]) => ({
-        playerId: id,
-        playerName: obj.name,
-      }));
+      .filter(([id, obj]) => obj.type === "player");
   }
 
+  getPipes() {
+    return Array.from(this.objects.entries()).filter(
+      ([id, obj]) => obj.type === "pipe"
+    );
+  }
+
+  incrementScore(playerId) {
+    if (!this.scores.has(playerId)) {
+      return;
+    }
+    const score = this.scores.get(playerId);
+    this.scores.set(playerId, score + 1);
+  }
   /**
    *
    * @param {User} user
    * @returns
    */
   joinPlayer(user) {
-    if (this.objects.has(user.id)) {
-      return;
+    if (!this.objects.has(user.id)) {
+      const player = createPlayer(user.name, this.settings, this.config);
+      this.objects.set(user.id, player);
+      this.scores.set(user.id, 0);
     }
-    const player = createPlayer(user.name, this.settings, this.config).build();
-    this.objects.set(user.id, player);
   }
 
   removePlayer(user) {
@@ -209,10 +228,12 @@ class SessionDispatch {
    *
    * @param {Socket} io
    * @param {string} sessionId
+   * @param {SessionManager} observer
    */
-  constructor(io, sessionId) {
+  constructor(io, sessionId, observer) {
     this.io = io;
     this.sessionId = sessionId;
+    this.observer = observer;
   }
   update(objectId, object, lerp) {
     if (object instanceof LeaderObject) {
@@ -228,14 +249,25 @@ class SessionDispatch {
     };
     this.io.to(this.sessionId).emit("update", data);
   }
+
+  /**
+   * 
+   * @param {SessionHandler} handler 
+   */
+  stop(handler) {
+    handler.stop();
+    this.observer.notify('stopped',({sessionId: this.sessionId}));
+  }
 }
 class SessionHandler {
   /**
    *
    * @param {Session} session
+   * @param {SessionManager} observer
    */
-  constructor(session) {
+  constructor(session, observer) {
     this.session = session;
+    this.observer = observer;
     this.handlerId = null;
   }
 
@@ -249,9 +281,23 @@ class SessionHandler {
     this.handlerId = setInterval(() => {
       this.session.objects.forEach((object, objectId) => {
         let lerp = true;
+        const { position } = object;
+        if(this.session.playersAlive() == 0) {
+          dispatch.stop(this);
+        }
         if (object.type.includes("pipe")) {
+          const previousX = position.x;
           object.update(1 / config.tps);
-          if (object.position.x < -2 * settings.pipeDimensions.x) {
+          const nextX = position.x;
+          if (
+            previousX > settings.playerOrigin.x &&
+            settings.playerOrigin.x >= nextX
+          ) {
+            // this.session.getPlayers().forEach(([id, player]) => {
+            //   this.session.incrementScore(id);
+            // });
+          }
+          if (position.x < -2 * settings.pipeDimensions.x) {
             const pipeX =
               settings.viewportWidth + pipeGap - 2 * settings.pipeDimensions.x;
             const pipeY = settings.randomPipeY();
@@ -260,17 +306,17 @@ class SessionHandler {
           }
           dispatch.update(objectId, object, lerp);
         }
-        if (object.type === "player") {
+        if (object.type === "player" && object instanceof Player) {
           object.update(
             1 / config.tps,
             settings.viewportWidth,
             settings.viewportHeight
           );
-          // this.getPipes().forEach((pipe) => {
-          //   if (pipe.collides(object)) {
-          //     //console.log("collision");
-          //   }
-          // });
+          this.session.getPipes().forEach(([id, pipe]) => {
+            if (pipe.collides(object)) {
+              object.alive = false;
+            }
+          });
           dispatch.update(objectId, object, lerp);
         }
       });
@@ -283,7 +329,10 @@ class SessionHandler {
   }
 
   stop() {
-    clearInterval();
+    if(!this.handlerId) {
+      return;
+    }
+    clearInterval(this.handlerId);
   }
 }
 
@@ -311,7 +360,7 @@ class SessionManager {
       throw new Error(`Player is already hosting session ${sessionId}`);
     }
     const session = new Session(config, settings);
-    const handler = new SessionHandler(session);
+    const handler = new SessionHandler(session, this);
     const sessionId = generateSessionId();
     this.hosts.set(playerId, sessionId);
     this.handlers.set(sessionId, handler);
@@ -356,7 +405,7 @@ class SessionManager {
       return false;
     }
     const handler = this.handlers.get(sessionId);
-    return handler.start(new SessionDispatch(this.io, sessionId));
+    return handler.start(new SessionDispatch(this.io, sessionId, this));
   }
 
   getHandler(sessionId) {
@@ -375,6 +424,16 @@ class SessionManager {
     }
 
     return null;
+  }
+
+  notify(event, data) {
+   switch(event) {
+    case 'stopped':
+      if (!data) {
+        return;
+      }
+      console.log(data);
+   } 
   }
 }
 

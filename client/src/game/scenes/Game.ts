@@ -1,6 +1,6 @@
 import { GameObjects, Scene } from "phaser";
 import { EventBus } from "../EventBus";
-import { Vector, GameObject } from "../ClientModels";
+import { Vector, GameObject, Player } from "../ClientModels";
 
 interface RenderObject {
     sprite: Phaser.Physics.Arcade.Sprite
@@ -114,10 +114,17 @@ export class Game extends Scene {
         }
         if (type === "player") {
             const sprite = new LeaderGroup(this, x, y, "bus").addFollower(
-                this.add.text(x, y, object.name), {x:-15,y:-40});
+                this.add.text(x, y, object.name), calculateOffset(object.name));
             return {sprite, meta: object};
         }
     }
+}
+function calculateOffset(name: string): Vector {
+    const x = -5 * name.length + -5;
+    return { x, y: -40 };
+}
+function isPlayer(object: GameObject): object is Player {
+ return (object as Player).alive !== undefined;
 }
 class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
     private followers: Map<Positionable, Vector> = new Map();
