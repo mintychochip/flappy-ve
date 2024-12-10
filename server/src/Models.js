@@ -142,18 +142,22 @@ class GameObjectBuilder {
     }
 }
 class LeaderObject extends GameObject {
+    /**
+     * 
+     * @param {GameObject} leader 
+     */
     constructor(leader) {
         super(leader.type, leader.position, leader.velocity, leader.name, leader.gravity, leader.properties, leader.dimensions, leader.rotation);
         this.followers = new Map();
     }
     /**
-     * 
+     * @param {string} id
      * @param {GameObject} follower 
      * @param {Vector} offset 
      * @returns {LeaderObject}
      */
     addFollower(id, follower, offset) {
-        this.followers.set(id, {follower,offset});
+        this.followers.set(id, {follower,offset: new Vector(offset.x,offset.y)});
         return this;
     }
 

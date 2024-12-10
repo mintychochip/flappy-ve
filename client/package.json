@@ -34,6 +34,7 @@
         "clsx": "^2.1.1",
         "lucide-vue-next": "^0.468.0",
         "phaser": "^3.87.0",
+        "pinia": "^2.3.0",
         "prettier": "^3.4.1",
         "radix-vue": "^1.9.11",
         "shadcn-vue": "^0.11.3",

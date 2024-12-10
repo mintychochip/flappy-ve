@@ -4,7 +4,6 @@ class SocketService {
   private socket: Socket | null = null;
   private socketUrl: string = "http://localhost:3000"; // Your Socket.IO server URL
   private isConnected: boolean = false;
-
   constructor() {
   }
 

@@ -20,20 +20,6 @@ const sessionSettings = new SessionSettings(
  * @param {DatabaseService} databaseService
  */
 module.exports = (sessionManager, databaseService) => {
-  router.post("/session/start", authenticate, async(req,res) => {
-    const { sessionId, userToken } = req.body;
-    try {
-      const { id: userId } = jwt.decode(userToken);
-      console.log(userId);
-      if(!userId) {
-        return res.status(400).json({ error: "Token was not provided. "});
-      }
-      sessionManager.start(sessionId, userId);
-    } catch (err) {
-      console.log(err);
-      res.status(500).json({ err });
-    }
-  })
   router.post("/session", authenticate, async (req, res) => {
     const { config, token } = req.body;
     try {
@@ -69,14 +55,15 @@ module.exports = (sessionManager, databaseService) => {
   router.get("/session/:id", async (req, res) => {
     const sessionId = req.params.id;
     try {
-      const {session} = sessionManager.getHandler(sessionId);
-      if(!session) {
+      const handler = sessionManager.getHandler(sessionId);
+      if(!handler) {
         return res.status(403).json({ error: "The session does not exist."});
       }
       const hostId = sessionManager.getHostId(sessionId);
       const host = await databaseService.getUserById(hostId);
-      res.status(200).json({ session, host });
+      res.status(200).json({ session:handler.session, host: {id: host.id, name: host.name} });
     } catch (err) {
+      console.log(err);
       res.status(500).json({ err });
     }
   });

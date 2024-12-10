@@ -24,14 +24,4 @@ import {
     TabsList,
     TabsTrigger,
 } from '@/components/ui/tabs';
-
-
-interface SessionConfig {
-
-}
-
-
-const handleJoinSession = () => {
-
-}
 </script>

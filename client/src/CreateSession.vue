@@ -81,7 +81,7 @@ const pipeCount = ref<number>(4);
 const pipeVelocityX = ref<number>(10);
 const playerGravity = ref<number>(50);
 const tps = ref<number>(32);
-const playerJumpVelocityY = ref<number>(8);
+const playerJumpVelocityY = ref<number>(20);
 
 interface SessionConfig {
     pipeCount: number

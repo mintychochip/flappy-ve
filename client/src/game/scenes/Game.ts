@@ -2,7 +2,6 @@ import { GameObjects, Scene } from "phaser";
 import { EventBus } from "../EventBus";
 import { Vector, GameObject } from "../ClientModels";
 
-const ENEMY_ALPHA = 0.5;
 interface RenderObject {
     sprite: Phaser.Physics.Arcade.Sprite
     meta: GameObject
@@ -14,10 +13,8 @@ export class Game extends Scene {
     private maxTiltAngle: number = 40;
     private renderedObjects: Map<string, RenderObject> = new Map();
     private lerpSet: Set<string> = new Set();
-    private readonly playerId: string | null;
     constructor() {
         super("Game");
-        this.playerId = sessionStorage.getItem('playerId');
     }
 
     preload() {
@@ -58,7 +55,7 @@ export class Game extends Scene {
                     } else if (velocity.y < 0) {
                         target = Phaser.Math.DegToRad(-this.maxTiltAngle);
                     }
-                    sprite.rotation = this.lerp(sprite.rotation,target,0.02);
+                    sprite.rotation = this.lerp(sprite.rotation,target,0.05);
                 }
             }
         });
@@ -101,7 +98,7 @@ export class Game extends Scene {
         });
     }
     render(objectId: string, obj: GameObject, lerp: boolean): void {
-        let object = this.renderedObjects.get(objectId) || this.createRender(objectId, obj);
+        let object = this.renderedObjects.has(objectId) ? this.renderedObjects.get(objectId) : this.createRender(obj);
         if (object) {
             this.renderedObjects.set(objectId, object);
             object.meta = obj;
@@ -109,7 +106,7 @@ export class Game extends Scene {
         }
     }
 
-    createRender(objectId: string, object: GameObject): RenderObject | undefined {
+    createRender(object: GameObject): RenderObject | undefined {
         const { x, y } = object.position;
         const { type } = object;
         if (type.includes('pipe')) {
@@ -118,9 +115,6 @@ export class Game extends Scene {
         if (type === "player") {
             const sprite = new LeaderGroup(this, x, y, "bus").addFollower(
                 this.add.text(x, y, object.name), {x:-15,y:-40});
-            if(!this.playerId || objectId !== this.playerId) {
-                sprite.setAlpha(ENEMY_ALPHA);
-            }
             return {sprite, meta: object};
         }
     }

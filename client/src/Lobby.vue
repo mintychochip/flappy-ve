@@ -4,46 +4,34 @@
             <CardHeader>
                 <div class="flex justify-between items-center">
                     <!-- Title -->
-                    <CardTitle class="text-2xl">
-                        {{ sessionHost?.name || "Unknown" }}'s Lobby
-                    </CardTitle>
-
+                    <div class="space-y-1.5">
+                        <CardTitle class="text-2xl">
+                            {{ sessionHost?.name || "Unknown" }}'s Lobby
+                        </CardTitle>
+                        <CardDescription>
+                            {{ sessionId }}
+                        </CardDescription>
+                    </div>
                     <!-- Buttons -->
-                    <div class="flex space-x-2">
-                        <Button @click="fetchPlayers">Refresh Players</Button>
-                        <Button
-                            @click="handleStart"
-                            class="bg-green-500"
-                            v-if="
-                                sessionHost &&
-                                client &&
-                                sessionHost.id === client.id
-                            "
-                            >Start</Button
-                        >
+                    <div class="flex space-x-1">
+                        <Button @click="handleLeave" class="bg-red-500">Leave</Button>
+                        <Button @click="handleStart" class="bg-blue-500" v-if="
+                            sessionHost && client && sessionHost.id === client.id
+                        ">Start</Button>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <Tabs default-value="players">
                     <TabsList class="grid w-full grid-cols-2">
-                        <TabsTrigger value="players" class="text-x1 px-8 py-4"
-                            >Players</TabsTrigger
-                        >
-                        <TabsTrigger value="settings" class="text-x1 px-8 py-4"
-                            >Settings</TabsTrigger
-                        >
+                        <TabsTrigger value="players" class="text-x1 px-8 py-4">Players</TabsTrigger>
+                        <TabsTrigger value="settings" class="text-x1 px-8 py-4">Settings</TabsTrigger>
                     </TabsList>
                     <TabsContent value="players">
                         <ScrollArea class="h-2/3 w-full border rounded-md p-4">
-                            <div
-                                v-for="player in clientPlayers"
-                                :key="player.type"
-                                class="flex"
-                            >
-                                <RocketLaunchIcon
-                                    class="w-6 h-6"
-                                ></RocketLaunchIcon>
+                            <div v-for="([playerId, player]) in clientPlayers" :key="playerId" class="flex">
+                                <RocketLaunchIcon v-if="sessionHost && sessionHost.id === playerId" class="w-6 h-6">
+                                </RocketLaunchIcon>
                                 <div class="text-large">
                                     {{ player?.name }}
                                 </div>
@@ -79,7 +67,7 @@ const route = useRoute();
 const sessionId = ref<string>();
 const sessionHost = ref<User | null>();
 const sessionMeta = ref<Session | null>();
-const clientPlayers = ref<GameObject[] | null>();
+const clientPlayers = ref<[string, GameObject][] | null>();
 const client = ref<User>();
 interface User {
     id: string;
@@ -90,32 +78,31 @@ interface Session {
     objects: Map<string, GameObject>;
 }
 
+const handleLeave = async () => {
+    const data = {
+        sessionId: sessionId.value,
+        userId: client.value?.id
+    }
+    socket.getSocket().emit('leave', data, (response: boolean) => {
+        console.log('here');
+        if(response) {
+            router.push('/');
+        }
+    })
+}
 const handleStart = async () => {
     const userToken = localStorage.getItem("token");
-    if (!userToken) {
+    if (!userToken || !sessionId.value) {
         router.push("/");
         return;
     }
-    try {
-        const response = await fetch(`${apiUrl}/api/session/start`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${userToken}`,
-            },
-            body: JSON.stringify({
-                userToken,
-                sessionId: sessionId.value,
-            }),
-        });
-        if (!response.ok) {
-            const err = await response.json();
-            console.error(err);
-            return;
-        }
-    } catch (err) {
-        console.error(err);
+    const data = {
+        sessionId: sessionId.value,
+        token: userToken
     }
+    socket.getSocket().emit('start',data, (response: boolean) => {
+    
+    });
 };
 
 const fetchPlayers = async () => {
@@ -124,13 +111,12 @@ const fetchPlayers = async () => {
     sessionMeta.value = session;
     clientPlayers.value = await playersInSession();
 };
-const playersInSession = async (): Promise<GameObject[] | null> => {
+const playersInSession = async (): Promise<[string, GameObject][]> => {
     if (!sessionMeta.value) {
         return null;
     }
     return Object.entries(sessionMeta.value.objects)
-        .filter(([id, object]) => (object as GameObject).type === "player")
-        .map(([id, object]) => object);
+        .filter(([id, object]) => (object as GameObject).type === "player");
 };
 const fetchClientData = async () => {
     const token = localStorage.getItem("token");
@@ -141,7 +127,7 @@ const fetchClientData = async () => {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer: ${token}`,
+            "Authorization": `Bearer: ${token}`,
         },
     });
 
@@ -178,6 +164,7 @@ const fetchSessionData = async (): Promise<{
         }
 
         const data = await response.json();
+        console.log(data);
         if (!data) {
             router.push("/");
         }
@@ -191,16 +178,27 @@ onMounted(async () => {
     sessionId.value = route.query.id as string;
     if (!sessionId.value) {
         router.push("/");
+        return;
     }
+
     const { host, session } = await fetchSessionData();
     sessionHost.value = host;
     sessionMeta.value = session;
-    clientPlayers.value = await playersInSession();
+    await fetchPlayers();
     client.value = await fetchClientData();
-
-    socket.getSocket().on('started', () => {
-        router.push('/game');
+    const s = socket.getSocket();
+    s.on('player-joined', (response: boolean) => {
+        if (response) {
+            fetchPlayers();
+        }
+    });
+    s.on('player-left', (response: boolean) => {
+        if (response) {
+            fetchPlayers();
+        }
+    });
+    s.on('session-started', () => {
+        router.push({path: '/game', query:{id: sessionId.value}});
     })
 });
 </script>
-
