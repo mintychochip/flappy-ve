@@ -1,52 +1,63 @@
 
 import { createRouter, createWebHistory } from "vue-router";
-import Game from './Game.vue'
-import Home from "./Home.vue";
-import Create from "./Create.vue";
-import Join from "./Join.vue";
-import OnlineMenu from "./OnlineMenu.vue";
 import { RouteLocationNormalized } from "vue-router";
-import { RouteLocation } from "vue-router";
-import { RouteLocationNormalizedLoaded } from "vue-router";
 import { NavigationGuardNext } from "vue-router";
+import Login from "./Login.vue";
+
+import Dashboard from './Dashboard.vue'
+import Lobby from "./Lobby.vue";
+import Game from "./Game.vue";
+
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const routes = [
     {
         path: '/',
-        name: 'Home',
-        component: Home,
+        name: 'Dashboard',
+        component: Dashboard,
+        beforeEnter: hasToken
     },
     {
-        path: '/create',
-        name: 'Create',   
-        component: Create,
+        path: '/session',
+        name: 'Lobby',
+        component: Lobby,
+        beforeEnter: hasToken
     },
     {
         path: '/game',
         name: 'Game',   
         component: Game,
-        beforeEnter: (to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) => {
-            const sessionId = sessionStorage.getItem('sessionId');
-            const playerId = sessionStorage.getItem('playerId');
-
-            if(!sessionId || !playerId) {
-                next('/');
+        beforeEnter: hasToken
+    },
+    {
+        path: '/login',
+        name: 'login',
+        component: Login,
+    }
+];
+async function hasToken(to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) {
+    const token = localStorage.getItem('token');
+            if(!token || !(await checkToken(token))) {
+                next('/login');
             } else {
                 next();
             }
+}
+async function checkToken(token:string): Promise<boolean> {
+     const response = await fetch(`${VITE_API_BASE_URL}/api/user/verify`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            "Content-Type" : "application/json"
         }
-    },
-    {
-        path: '/join',
-        name: 'Join',   
-        component: Join,
-    },
-    {
-        path: '/online',
-        name: 'Online Menu',
-        component: OnlineMenu,
-    },
-];
-
+     });
+     if(!response.ok) {
+        const err = await response.json();
+        console.error(err);
+        return false;
+     }
+     return true;
+}
 const router = createRouter({
     history: createWebHistory(),
     routes

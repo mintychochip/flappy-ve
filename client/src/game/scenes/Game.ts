@@ -1,14 +1,10 @@
 import { GameObjects, Scene } from "phaser";
 import { EventBus } from "../EventBus";
-import { Vector, ClientGameObject } from "../ClientModels";
+import { Vector, GameObject, Player } from "../ClientModels";
 
-/*TODO:
-- Collision
-*/
-const ENEMY_ALPHA = 0.5;
 interface RenderObject {
     sprite: Phaser.Physics.Arcade.Sprite
-    meta: ClientGameObject
+    meta: GameObject
 }
 interface Positionable {
     setPosition(x: number, y: number): this;
@@ -17,10 +13,8 @@ export class Game extends Scene {
     private maxTiltAngle: number = 40;
     private renderedObjects: Map<string, RenderObject> = new Map();
     private lerpSet: Set<string> = new Set();
-    private readonly playerId: string | null;
     constructor() {
         super("Game");
-        this.playerId = sessionStorage.getItem('playerId');
     }
 
     preload() {
@@ -41,7 +35,7 @@ export class Game extends Scene {
     }
     
     update() {
-        const lerpFactor = 0.05;
+        const lerpFactor = 0.5;
         this.renderedObjects.forEach((object, id) => {
             if (object) {
                 const { position, type, velocity } = object.meta;
@@ -61,7 +55,7 @@ export class Game extends Scene {
                     } else if (velocity.y < 0) {
                         target = Phaser.Math.DegToRad(-this.maxTiltAngle);
                     }
-                    sprite.rotation = this.lerp(sprite.rotation,target,0.02);
+                    sprite.rotation = this.lerp(sprite.rotation,target,0.05);
                 }
             }
         });
@@ -72,7 +66,6 @@ export class Game extends Scene {
     }
 
     create() {
-
         this.background();
         const busFrames = this.anims.generateFrameNames("bus", {
             start: 0,
@@ -90,18 +83,7 @@ export class Game extends Scene {
 
         this.input.keyboard?.on('keydown-SPACE',() => {
             EventBus.emit('drive');
-        })
-
-        EventBus.on(
-            "update",
-            (data: {
-                objectId: string;
-                object: ClientGameObject;
-                lerp: boolean;
-            }) => {
-                this.render(data.objectId, data.object, data.lerp);
-            },
-        );
+        });
 
         EventBus.on("player-drive", (playerId: string) => {
             const player = this.renderedObjects.get(playerId);
@@ -110,10 +92,13 @@ export class Game extends Scene {
             }
             player.sprite.anims.play("drive");
         });
+
+        EventBus.on('update', (data: any) => {
+            this.render(data.objectId,data.object,data.lerp);
+        });
     }
-    render(objectId: string, obj: ClientGameObject, lerp: boolean): void {
-        let object = this.renderedObjects.get(objectId) || this.createRender(objectId, obj);
-        
+    render(objectId: string, obj: GameObject, lerp: boolean): void {
+        let object = this.renderedObjects.has(objectId) ? this.renderedObjects.get(objectId) : this.createRender(obj);
         if (object) {
             this.renderedObjects.set(objectId, object);
             object.meta = obj;
@@ -121,7 +106,7 @@ export class Game extends Scene {
         }
     }
 
-    createRender(objectId: string, object: ClientGameObject): RenderObject | undefined {
+    createRender(object: GameObject): RenderObject | undefined {
         const { x, y } = object.position;
         const { type } = object;
         if (type.includes('pipe')) {
@@ -129,13 +114,17 @@ export class Game extends Scene {
         }
         if (type === "player") {
             const sprite = new LeaderGroup(this, x, y, "bus").addFollower(
-                this.add.text(x, y, object.name), {x:-15,y:-40});
-            if(!this.playerId || objectId !== this.playerId) {
-                sprite.setAlpha(ENEMY_ALPHA);
-            }
+                this.add.text(x, y, object.name), calculateOffset(object.name));
             return {sprite, meta: object};
         }
     }
+}
+function calculateOffset(name: string): Vector {
+    const x = -5 * name.length + -5;
+    return { x, y: -40 };
+}
+function isPlayer(object: GameObject): object is Player {
+ return (object as Player).alive !== undefined;
 }
 class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
     private followers: Map<Positionable, Vector> = new Map();

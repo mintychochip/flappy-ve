@@ -3,45 +3,48 @@ import { inject, onMounted, onUnmounted, Ref, ref } from 'vue';
 import { EventBus } from './EventBus';
 import StartGame from './main';
 import Phaser from 'phaser';
+import {Game as MainGame} from './scenes/Game'
+import { useRoute } from 'vue-router';
+import router from '@/router';
 // Save the current scene instance
 
 const scene = ref();
 const game = ref();
+const route = useRoute();
 const socketService: any = inject('$socket');
 const emit = defineEmits(['current-active-scene']);
-const serverListeners = () => {
-    socketService.getSocket().on('update', (object: any) => {
-        EventBus.emit('update', object);
-    });
+const apiUrl = inject('api-url') as string;
 
-    /**
-     * Called when another player drives, to animate their spirte
-     */
-    socketService.getSocket().on('player-drive',(playerId: string) => {
-        EventBus.emit('player-drive',playerId);
-    })
-}
-const sessionId = sessionStorage.getItem('sessionId');
-const playerId = sessionStorage.getItem('playerId');
-onMounted(() => {
-
+onMounted(async () => {
+    const sessionId = route.query.id as string;
     game.value = StartGame('game-container');
     EventBus.on('current-scene-ready', (scene_instance: Phaser.Scene) => {
         emit('current-active-scene', scene_instance);
         scene.value = scene_instance;
     });
-
+    const s = socketService.getSocket();
     EventBus.on('drive', () => {
-        if (!sessionId) { // Check if sessionId and its value are valid
+        if (!sessionId) {
+            return;
+        }
+        const userToken = localStorage.getItem('token');
+        if(!userToken) {
             return;
         }
         const data = {
             sessionId: sessionId,
-            playerId: playerId,
+            userToken: userToken,
         }
-        socketService.getSocket().emit('drive',data);
+        s.emit('drive',data);
     });
-    serverListeners();
+
+    socketService.getSocket().on('update',(data: any) => {
+        EventBus.emit('update',data);
+    })
+    s.on('player-drive',(playerId: string) => {
+        EventBus.emit('player-drive',playerId);
+    })
+     
 });
 
 onUnmounted(() => {

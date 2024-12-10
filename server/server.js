@@ -3,95 +3,132 @@ const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 const cors = require("cors");
-const LobbyService = require("./src/service/LobbyService");
 const routes = require("./src/routes/ApiController"); // Import the routes directly
-const { NameGenerator } = require("./src/service/NameGenerator");
 const { join } = require("path");
-const { SessionManager} = require("./SessionManager");
-
-// Create an Express app
+const {
+  SessionManager,
+  SessionConfig,
+  PipeFactory,
+  PlayerFactory,
+  SessionSettings,
+} = require("./SessionManager");
+const { Vector } = require("./src/Models");
+const { v4: uuidv4 } = require("uuid");
+const { hostname } = require("os");
+const DatabaseService = require("./src/service/DatabaseService");
+const jwt = require("jsonwebtoken");
 const app = express();
 
-// Create an HTTP server and pass the Express app
 const server = http.createServer(app);
 
-
-// Initialize socket.io with the HTTP server
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:8081", // Allow only this origin
+    origin: "http://localhost:8081",
     methods: ["GET", "POST"],
   },
 });
 
-// Initialize LobbyService with socket.io instance
-const lobbyService = new LobbyService(io);
-
-// Middleware to parse JSON bodies
 app.use(express.json());
 app.use(cors());
-
-// Use routes, passing lobbyService as a dependency
-app.use("/api", routes(lobbyService));
 const manager = new SessionManager(io);
-const id = generateRoomId();
-console.log(id);
-manager.start(id,20);
-io.on("connection", (socket) => {
-  socket.on("create-room", (args) => {
-    const {  } = args;
-    
-    // Open new room
-    const roomId = generateRoomId()
-    manager.start(roomId, 20);
+const databaseService = new DatabaseService("database.db");
+app.use("/api", routes(manager, databaseService));
 
-    // Add requesting socket to session
-    const session = manager.getSession(roomId);
-    if(!session) {
+io.on("connection", (socket) => {
+  //TODO: need to do reconnection logic
+  socket.on("leave", async (data, callback) => {
+    const { sessionId, userId } = data;
+    if (!sessionId || !userId) {
       return;
     }
-    session.join(socket,playerId, playerName);
-    console.log(`Socket ${socket.id} named ${playerName} joined: session ${sessionId}`)
-    if(callback) {
-        callback({ success: true });
+    try {
+      const user = await databaseService.getUserById(userId);
+      const result = manager.removeUser(sessionId, user, socket);
+      io.to(sessionId).emit("player-left", result);
+      console.log(result);
+      if (callback) {
+        callback({ result });
+      }
+    } catch (err) {
+      console.error(err);
     }
   });
-  socket.on("join-room", (data,callback) => {
-    const { sessionId, playerName } = data;
-    const session = manager.getSession(sessionId);
-    if(!session) {
+  socket.on("remove", async (data, callback) => {
+    const { sessionId, userId, hostId } = data;
+    if (!sessionId || !userId || !hostId) {
       return;
-    }
-    const playerId = session.join(socket,playerName);
-    console.log(`Socket ${socket.id} id ${playerId} named ${playerName} joined: session ${sessionId}`)
-    if(callback) {
-      callback({ sessionId, playerId });
     }
   });
-  socket.on('drive',(data) => {
-    const { sessionId, playerId } = data;
-    const session = manager.getSession(sessionId);
-    if(!session) {
+  socket.on("join", async (data, callback) => {
+    const { sessionId, token } = data;
+    if (!sessionId || !token) {
       return;
     }
-    session.handleDrive(io,playerId);
+    try {
+      const decoded = jwt.decode(token);
+      const user = await databaseService.getUserById(decoded.id);
+      if (!user) {
+        return;
+      }
+      const result = manager.joinSession(sessionId, user, socket);
+      io.to(sessionId).emit("player-joined", result);
+      if (callback) {
+        callback({ result });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
+  socket.on("start", async (data, callback) => {
+    const { sessionId, token } = data;
+
+    try {
+      const decoded = jwt.decode(token);
+      if (!decoded || !decoded.id) {
+        return socket.emit("start-session-error", { error: "Invalid token" });
+      }
+
+      const user = await databaseService.getUserById(decoded.id);
+      if (!user) {
+        return socket.emit("start-session-error", { error: "User not found" });
+      }
+
+      if (manager.getHostId(sessionId) !== user.id) {
+        return socket.emit("start-session-error", {
+          error: "You are not the host",
+        });
+      }
+      const result = manager.startSession(sessionId, user.id);
+      if (result) {
+        io.to(sessionId).emit("session-started");
+      }
+      if (callback) {
+        callback({ result });
+      }
+    } catch (err) {
+      console.error("Error starting session:", err);
+    }
+  });
+
+  socket.on("drive", async (data) => {
+    const { sessionId, userToken } = data;
+    const handler = manager.getHandler(sessionId);
+    if (!handler) {
+      return;
+    }
+    try {
+      const decoded = jwt.decode(userToken);
+      const user = await databaseService.getUserById(decoded.id);
+      handler.session.handleDrive(user.id);
+      const playerId = user.id;
+      io.to(sessionId).emit('player-drive',playerId);
+    } catch (err) {
+      console.log(err);
+    }
   });
 });
 
-function generateRoomId() {
-  const characters =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let roomId = "";
-  for (let i = 0; i < 6; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length);
-    roomId += characters[randomIndex];
-  }
-  return roomId;
-}
-// Set the port and start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
-
-

@@ -1,4 +1,5 @@
 const { v4: uuidv4 } = require("uuid");
+const EventEmitter = require("events");
 const {
   Player,
   Vector,
@@ -6,184 +7,434 @@ const {
   GameObject,
   LeaderObject,
 } = require("./src/Models");
-const config = {
-  screenWidth: 1024,
-  screenHeight: 768,
-  pipe: {
-    width: 52,
-    height: 456,
-    // vh + h/6
-    maxY: 844,
-    minY: 540,
-  },
-  player: {
-    width: 58,
-    height: 22,
-  },
-  count: 4,
-};
 
-function minValidPipeHeight(spacer, viewportHeight) {
-  return (3 * (viewportHeight - spacer)) / 4;
+function generateSessionId() {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let roomId = "";
+  for (let i = 0; i < 6; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    roomId += characters[randomIndex];
+  }
+  return roomId;
 }
-
-function createPipe(type, origin) {
-  return new GameObjectBuilder(type)
-    .setPosition(origin)
-    .setVelocity(new Vector(-20, 0))
-    .setWidth(52)
-    .setHeight(456);
-}
-
-function createPlayer(origin, name) {
-  return new GameObjectBuilder("player")
-    .setBounded(true)
-    .setGravity(70)
-    .setName(name)
-    .setWidth(58)
-    .setHeight(22)
-    .setPosition(origin)
-    .build();
-}
-
-function random(max, min) {
-  return Math.random() * (max - min) + min;
-}
-
-function calculatePipeGap() {
+/**
+ *
+ * @param {SessionSettings} settings
+ * @param {SessionConfig} config
+ * @returns {number} pipeGap
+ */
+function calculatePipeGap(settings, config) {
   return (
-    (config.screenWidth - config.count * config.pipe.width) / (config.count - 1)
+    (settings.viewportWidth - config.pipeCount * settings.pipeDimensions.x) /
+    (config.pipeCount - 1)
   );
 }
-const createPipes = () => {
-  const width = config.screenWidth;
-  const pipeGap = calculatePipeGap();
-  const pipes = new Map();
-  for (let i = 0; i < config.count; i++) {
-    const pipeX = width + pipeGap + i * (config.pipe.width + pipeGap);
-    const pipeY = random(config.pipe.maxY, config.pipe.minY);
+/**
+ *
+ * @param {Vector} origin
+ * @param {SessionSettings} settings
+ * @param {SessionConfig} config
+ * @returns {GameObjectBuilder}
+ */
+function createPipeBuilder(origin, settings, config) {
+  return new GameObjectBuilder("pipe")
+    .setPosition(origin)
+    .setVelocity(config.pipeVelocity)
+    .setDimensions(settings.pipeDimensions);
+}
+/**
+ *
+ * @param {SessionSettings} settings;
+ * @param {SessionConfig} config
+ * @returns
+ */
+function createPipes(settings, config) {
+  const { viewportWidth, pipeSpacer } = settings;
+  const { x, y } = settings.pipeDimensions;
+  const pipeGap = calculatePipeGap(settings, config);
 
-    const origin = new Vector(pipeX, pipeY);
-    const pipe = createPipe("pipe", origin);
-    const object = new LeaderObject(pipe).addFollower(uuidv4(),createPipe('pipe',new Vector(origin.x,origin.y)).setRotation(180).build(),new Vector(0,-160 - config.pipe.height));
-    pipes.set(uuidv4(), object);
+  const pipes = new Map();
+  for (let i = 0; i < config.pipeCount; i++) {
+    const pipeX = viewportWidth + pipeGap + i * (x + pipeGap);
+    const pipeY = settings.randomPipeY();
+    const delegate = createPipeBuilder(
+      new Vector(pipeX, pipeY),
+      settings,
+      config
+    ).build();
+    const leader = new LeaderObject(delegate).addFollower(
+      uuidv4(),
+      createPipeBuilder(new Vector(pipeX, pipeY), settings, config)
+        .setRotation(180)
+        .build(),
+      new Vector(0, -pipeSpacer - y)
+    );
+    pipes.set(uuidv4(), leader);
   }
   return pipes;
-};
-
-class Session {
+}
+/**
+ *
+ * @param {string} playerName
+ * @param {SessionSettings} settings
+ * @param {SessionConfig} config
+ * @returns
+ */
+function createPlayer(playerName, settings, config) {
+  return Player.createFromGameObject(
+    new GameObjectBuilder("player")
+      .setBounded(true)
+      .setGravity(config.playerGravity)
+      .setName(playerName)
+      .setDimensions(settings.playerDimensions)
+      .setPosition(settings.playerOrigin)
+      .build()
+  );
+}
+class SessionSettings {
   /**
-   * @param {string} sessionId
-   * @param {number} tps
-   * @param {GameObject} objects
+   *
+   * @param {number} viewportHeight
+   * @param {number} viewportWidth
+   * @param {number} pipeSpacer
+   * @param {Vector} pipeDimensions
+   * @param {Vector} playerDimensions
+   * @param {Vector} playerOrigin
    */
-  constructor(sessionId, tps = 20, objects) {
-    this.sessionId = sessionId;
-    this.tps = tps;
-    this.objects = objects;
+  constructor(
+    viewportHeight,
+    viewportWidth,
+    pipeSpacer,
+    pipeDimensions,
+    playerDimensions,
+    playerOrigin
+  ) {
+    this.viewportHeight = viewportHeight;
+    this.viewportWidth = viewportWidth;
+    this.pipeSpacer = pipeSpacer;
+    this.pipeDimensions = pipeDimensions;
+    this.playerDimensions = playerDimensions;
+    this.playerOrigin = playerOrigin;
   }
 
-  join(socket, playerName) {
-    socket.join(this.sessionId);
-    const player = createPlayer(
-      new Vector(100, config.screenHeight / 2),
-      playerName
-    );
-    const playerId = uuidv4();
-    this.objects.set(playerId, player);
-    return playerId;
+  randomPipeY() {
+    const max = this.viewportHeight + this.pipeDimensions.y / 6;
+    const min = this.viewportHeight - this.pipeDimensions.y / 2;
+    const num = Math.random() * (max - min) + min;
+    return num;
+  }
+}
+class SessionConfig {
+  /**
+   *
+   * @param {number} pipeCount
+   * @param {Vector} pipeVelocity
+   * @param {number} playerGravity
+   * @param {number} tps
+   * @param {Vector} playerJumpVelocity
+   */
+  constructor(pipeCount, pipeVelocity, playerGravity, tps, playerJumpVelocity) {
+    this.pipeCount = pipeCount;
+    this.pipeVelocity = pipeVelocity;
+    this.playerGravity = playerGravity;
+    this.tps = tps;
+    this.playerJumpVelocity = playerJumpVelocity;
   }
 
   interval() {
     return 1000 / this.tps;
   }
+}
+class Session {
+  /**
+   * @param {SessionConfig} config
+   * @param {SessionSettings} settings
+   */
+  constructor(config, settings) {
+    this.config = config;
+    this.settings = settings;
+    this.objects = createPipes(settings, config);
+    this.scores = new Map();
+  }
 
-  handle(io) {
-    return setInterval(() => {
-      const pipes = Array.from(this.objects.values()).filter(
-        (object) => object.type === "pipe"
-      );
-      this.objects.forEach((object, objectId) => {
-        const data = {
-          objectId,
-          object,
-          lerp: true,
-        };
-        if (object.type.includes("pipe") && object instanceof LeaderObject) {
-          object.update(1 / this.tps);
+  playersAlive() {
+    return this.getPlayers().filter(([id,player])=> {
+      return player.alive
+    });
+  }
 
-          const objects = object.flatten(objectId);
-          if (object.position.x < -2 * config.pipe.width) {
-              let lowerPipeX = config.screenWidth + calculatePipeGap() - 2 * config.pipe.width;
-              let lowerPipeY = random(config.pipe.maxY, config.pipe.minY);
-              object.setPosition(lowerPipeX, lowerPipeY);
-              data.lerp = false;
-          }
-          objects.forEach((object, id) => {
-            io.to(this.sessionId).emit('update',{objectId: id, object, lerp: data.lerp});
-          });
-        }
-        if (object.type === "player") {
-          object.update(1 / this.tps, config.screenWidth, config.screenHeight);
-          io.to(this.sessionId).emit("update", data);
-        }
-      });
-    }, this.interval());
+  handleDrive(playerId) {
+    if (!playerId) {
+      return;
+    }
+    const player = this.objects.get(playerId);
+    const { playerJumpVelocity } = this.config;
+    player.velocity = new Vector(playerJumpVelocity.x, playerJumpVelocity.y);
+  }
+
+  getPlayers() {
+    return Array.from(this.objects.entries())
+      .filter(([id, obj]) => obj.type === "player");
   }
 
   getPipes() {
-    return this.objects.filter((object) => object.type === "pipe");
+    return Array.from(this.objects.entries()).filter(
+      ([id, obj]) => obj.type === "pipe"
+    );
   }
 
-  handleDrive(io,playerId) {
-    if(!io || !playerId) {
+  incrementScore(playerId) {
+    if (!this.scores.has(playerId)) {
       return;
     }
-    io.to(this.sessionId).emit('player-drive',playerId);
-    const player = this.objects.get(playerId);
-    player.velocity = new Vector(0, -30);
-    this.objects.set(playerId, player);
+    const score = this.scores.get(playerId);
+    this.scores.set(playerId, score + 1);
+  }
+  /**
+   *
+   * @param {User} user
+   * @returns
+   */
+  joinPlayer(user) {
+    if (!this.objects.has(user.id)) {
+      const player = createPlayer(user.name, this.settings, this.config);
+      this.objects.set(user.id, player);
+      this.scores.set(user.id, 0);
+    }
   }
 
-  static 
+  removePlayer(user) {
+    if (!this.objects.has(user.id)) {
+      return;
+    }
+    this.objects.delete(user.id);
+  }
+  toJSON() {
+    const objects = {};
+
+    this.objects.forEach((object, id) => {
+      objects[id] = object;
+    });
+    return {
+      settings: this.settings,
+      config: this.config,
+      hostId: this.hostId,
+      objects,
+    };
+  }
+}
+class SessionDispatch {
+  /**
+   *
+   * @param {Socket} io
+   * @param {string} sessionId
+   * @param {SessionManager} observer
+   */
+  constructor(io, sessionId, observer) {
+    this.io = io;
+    this.sessionId = sessionId;
+    this.observer = observer;
+  }
+  update(objectId, object, lerp) {
+    if (object instanceof LeaderObject) {
+      const objects = object.flatten(objectId);
+      objects.forEach((object, id) => {
+        this.update(id, object, lerp);
+      });
+    }
+    const data = {
+      objectId,
+      object,
+      lerp,
+    };
+    this.io.to(this.sessionId).emit("update", data);
+  }
+
+  /**
+   * 
+   * @param {SessionHandler} handler 
+   */
+  stop(handler) {
+    handler.stop();
+    this.observer.notify('stopped',({sessionId: this.sessionId}));
+  }
+}
+class SessionHandler {
+  /**
+   *
+   * @param {Session} session
+   * @param {SessionManager} observer
+   */
+  constructor(session, observer) {
+    this.session = session;
+    this.observer = observer;
+    this.handlerId = null;
+  }
+
+  start(dispatch) {
+    if (this.handlerId || !this.session) {
+      return false;
+    }
+    const { settings, config } = this.session;
+    const interval = config.interval();
+    const pipeGap = calculatePipeGap(settings, config);
+    this.handlerId = setInterval(() => {
+      this.session.objects.forEach((object, objectId) => {
+        let lerp = true;
+        const { position } = object;
+        if(this.session.playersAlive() == 0) {
+          dispatch.stop(this);
+        }
+        if (object.type.includes("pipe")) {
+          const previousX = position.x;
+          object.update(1 / config.tps);
+          const nextX = position.x;
+          if (
+            previousX > settings.playerOrigin.x &&
+            settings.playerOrigin.x >= nextX
+          ) {
+            // this.session.getPlayers().forEach(([id, player]) => {
+            //   this.session.incrementScore(id);
+            // });
+          }
+          if (position.x < -2 * settings.pipeDimensions.x) {
+            const pipeX =
+              settings.viewportWidth + pipeGap - 2 * settings.pipeDimensions.x;
+            const pipeY = settings.randomPipeY();
+            object.setPosition(pipeX, pipeY);
+            lerp = false;
+          }
+          dispatch.update(objectId, object, lerp);
+        }
+        if (object.type === "player" && object instanceof Player) {
+          object.update(
+            1 / config.tps,
+            settings.viewportWidth,
+            settings.viewportHeight
+          );
+          this.session.getPipes().forEach(([id, pipe]) => {
+            if (pipe.collides(object)) {
+              object.alive = false;
+            }
+          });
+          dispatch.update(objectId, object, lerp);
+        }
+      });
+    }, interval);
+    return true;
+  }
+
+  hasStarted() {
+    return this.handlerId != null;
+  }
+
+  stop() {
+    if(!this.handlerId) {
+      return;
+    }
+    clearInterval(this.handlerId);
+  }
 }
 
 class SessionManager {
+  /**
+   *
+   * @param {Socket} io
+   */
   constructor(io) {
     this.io = io;
-    this.sessionHandlers = new Map();
-    this.sessions = new Map();
+    this.handlers = new Map();
+    this.hosts = new Map();
   }
 
   /**
    *
-   * @param {Session} session
-   * @param {*} tps
+   * @param {string} playerId
+   * @param {SessionConfig} config
+   * @param {SessionSettings} settings
+   * @returns {string} sessionId
    */
-  start(sessionId, tps = 20) {
-    if (tps > 1000) {
-      throw new Error("the tps is too high!");
+  createSession(settings, config, playerId) {
+    if (this.hosts.has(playerId)) {
+      const sessionId = this.hosts.get(playerId);
+      throw new Error(`Player is already hosting session ${sessionId}`);
     }
-    const pipeObjects = createPipes();
-    const session = new Session(sessionId, tps, pipeObjects);
-    // this.io.to(sessionId).emit("starting", { sessionId, pipeObjects });
-    const handlerId = session.handle(this.io);
-    this.sessions.set(sessionId, session);
-    this.sessionHandlers.set(sessionId, handlerId);
+    const session = new Session(config, settings);
+    const handler = new SessionHandler(session, this);
+    const sessionId = generateSessionId();
+    this.hosts.set(playerId, sessionId);
+    this.handlers.set(sessionId, handler);
+    return { sessionId, session };
   }
 
   /**
    *
    * @param {string} sessionId
-   * @returns {Session}
+   * @param {User} user
+   * @param {Socket} socket
+   * @returns {boolean}
    */
-  getSession(sessionId) {
-    return this.sessions.get(sessionId);
+  joinSession(sessionId, user, socket) {
+    if (!sessionId || !user) {
+      return false;
+    }
+    const handler = this.handlers.get(sessionId);
+    if (!handler || handler.hasStarted()) {
+      return false;
+    }
+    socket.join(sessionId);
+    handler.session.joinPlayer(user);
+    return true;
   }
 
-  getSessionHandler(sessionId) {
-    return this.sessionHandlers.get(sessionId);
+  removeUser(sessionId, user, socket) {
+    if (!sessionId || !user) {
+      return false;
+    }
+    const handler = this.handlers.get(sessionId);
+    if (!handler) {
+      return false;
+    }
+    socket.leave(sessionId);
+    handler.session.removePlayer(user);
+    return true;
+  }
+
+  startSession(sessionId, playerId) {
+    if (!(this.handlers.has(sessionId) && this.hosts.has(playerId))) {
+      return false;
+    }
+    const handler = this.handlers.get(sessionId);
+    return handler.start(new SessionDispatch(this.io, sessionId, this));
+  }
+
+  getHandler(sessionId) {
+    const handler = this.handlers.get(sessionId);
+    return handler;
+  }
+
+  getHostId(sessionId) {
+    if (!sessionId) {
+      return null;
+    }
+    for (let [host, session] of this.hosts) {
+      if (session === sessionId) {
+        return host;
+      }
+    }
+
+    return null;
+  }
+
+  notify(event, data) {
+   switch(event) {
+    case 'stopped':
+      if (!data) {
+        return;
+      }
+      console.log(data);
+   } 
   }
 }
 
-module.exports = { SessionManager };
+module.exports = { SessionManager, SessionConfig, SessionSettings };

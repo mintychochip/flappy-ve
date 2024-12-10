@@ -1,57 +1,23 @@
-class Lobby {
-    /**
-     *
-     * @param {number} id
-     * @param {string} name
-     * @param {number} max_count
-     */
-    constructor(id, name, max_count) {
-        this.id = id;
-        this.name = name;
-        this.max_count = max_count;
-    }
-}
-
 class User {
     /**
-     *
-     * @param {string} socket_id
-     * @param {string} name
-     * @param {number} lobby_id //nullable
+     * 
+     * @param {string} name 
+     * @param {string} password
+     * @param {number} join_date 
+     * @param {string} id 
      */
-    constructor(socket_id, name, lobby_id) {
-        this.socket_id = socket_id;
+    constructor(name, password, timestamp, id) {
         this.name = name;
-        this.lobby_id = lobby_id;
+        this.password = password;
+        this.timestamp = timestamp;
+        this.id = id;
     }
 }
-
-class Host {
-    /**
-     *
-     * @param {string} host_id
-     * @param {number} lobby_id
-     */
-    constructor(host_id, lobby_id) {
-        this.host_id = host_id;
-        this.lobby_id = lobby_id;
-    }
-}
-
 class Vector {
     constructor(x, y) {
         this.x = x;
         this.y = y;
     }
-}
-
-class Hitbox {
-    constructor(origin, one, two) {
-        this.one = one;
-        this.two = two;
-    }
-
-
 }
 
 class GameObject {
@@ -94,25 +60,37 @@ class GameObject {
      * @returns {boolean}
      */
     collides(obj2) {
-        return (
-            this.position.x < obj2.position.x + obj2.properties.width &&
-            this.position.x + this.properties.width > obj2.position.x &&
-            this.position.y < obj2.position.y + obj2.properties.height &&
-            this.position.y + this.properties.height > obj2.position.y
-        );
+        const halfWidth1 = this.dimensions.x / 2;
+        const halfHeight1 = this.dimensions.y / 2;
+        const halfWidth2 = obj2.dimensions.x / 2;
+        const halfHeight2 = obj2.dimensions.y / 2;
+    
+        const horizontalCollision = Math.abs(this.position.x - obj2.position.x) < (halfWidth1 + halfWidth2);
+        const verticalCollision = Math.abs(this.position.y - obj2.position.y) < (halfHeight1 + halfHeight2);
+    
+        return horizontalCollision && verticalCollision;
     }
 
     clone() {
         return new GameObject(this.type,this.position,this.velocity,this.name,this.gravity,this.properties,this.dimensions,this.rotation);
     }
 }
-
+class Player extends GameObject {
+    constructor(type, position, velocity, name, gravity, properties, dimensions, rotation, alive=true) {
+        super(type,position,velocity,name,gravity,properties,dimensions,rotation);
+        this.alive = alive;
+    }
+    
+    static createFromGameObject(obj) {
+        return new Player(obj.type,obj.position,obj.velocity,obj.name,obj.gravity,obj.properties,obj.dimensions,obj.rotation);
+    }
+}
 class GameObjectBuilder {
     constructor(type = 'default') {
         this.type = type;
         this.position = new Vector(0, 0);
         this.velocity = new Vector(0, 0);
-        this.dimensions = { width: 0, height: 0 };
+        this.dimensions = new Vector(0,0);
         this.gravity = 0;
         this.name = '';
         this.properties = {
@@ -141,15 +119,6 @@ class GameObjectBuilder {
     }
     setDimensions(dimensions) {
         this.dimensions = dimensions;
-        return this;
-    }
-    setWidth(width) {
-        this.dimensions.width = width;
-        return this;
-    }
-
-    setHeight(height) {
-        this.dimensions.height = height;
         return this;
     }
 
@@ -182,18 +151,22 @@ class GameObjectBuilder {
     }
 }
 class LeaderObject extends GameObject {
+    /**
+     * 
+     * @param {GameObject} leader 
+     */
     constructor(leader) {
         super(leader.type, leader.position, leader.velocity, leader.name, leader.gravity, leader.properties, leader.dimensions, leader.rotation);
         this.followers = new Map();
     }
     /**
-     * 
+     * @param {string} id
      * @param {GameObject} follower 
      * @param {Vector} offset 
      * @returns {LeaderObject}
      */
     addFollower(id, follower, offset) {
-        this.followers.set(id, {follower,offset});
+        this.followers.set(id, {follower,offset: new Vector(offset.x,offset.y)});
         return this;
     }
 
@@ -207,6 +180,14 @@ class LeaderObject extends GameObject {
         });
     }
 
+    collides(obj2) {
+        let b = super.collides(obj2);
+        this.followers.forEach((value,id) => {
+            const { follower } = value; 
+            b = follower.collides(obj2) || b;
+        });
+        return b;
+    }
     flatten(leaderId) {
         const flatMap = new Map();
 
@@ -220,4 +201,4 @@ class LeaderObject extends GameObject {
         return flatMap;
     }
 }
-module.exports = { Lobby, User, Host, GameObject, Hitbox, GameObjectBuilder, Vector, LeaderObject };
+module.exports = { User, GameObject, GameObjectBuilder, Vector, LeaderObject, Player };

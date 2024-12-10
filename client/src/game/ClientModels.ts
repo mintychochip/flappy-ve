@@ -1,4 +1,4 @@
-export interface ClientGameObject {
+export interface GameObject {
     type: string
     position: Vector
     velocity: Vector
@@ -9,6 +9,10 @@ export interface ClientGameObject {
         bounded: boolean
     }
     rotation: number
+}
+
+export interface Player extends GameObject {
+    alive: boolean
 }
 export interface Vector {
     x: number
