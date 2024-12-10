@@ -74,9 +74,13 @@ import { useRoute } from "vue-router";
 import router from "./router";
 import { GameObject } from "./game/ClientModels";
 const apiUrl = inject("api-url") as string;
+const socket: any = inject("$socket");
 const route = useRoute();
 const sessionId = ref<string>();
-
+const sessionHost = ref<User | null>();
+const sessionMeta = ref<Session | null>();
+const clientPlayers = ref<GameObject[] | null>();
+const client = ref<User>();
 interface User {
     id: string;
     name: string;
@@ -85,10 +89,6 @@ interface User {
 interface Session {
     objects: Map<string, GameObject>;
 }
-const sessionHost = ref<User | null>();
-const sessionMeta = ref<Session | null>();
-const clientPlayers = ref<GameObject[] | null>();
-const client = ref<User>();
 
 const handleStart = async () => {
     const userToken = localStorage.getItem("token");
@@ -105,7 +105,7 @@ const handleStart = async () => {
             },
             body: JSON.stringify({
                 userToken,
-                sessionId: sessionId.value
+                sessionId: sessionId.value,
             }),
         });
         if (!response.ok) {
@@ -197,5 +197,10 @@ onMounted(async () => {
     sessionMeta.value = session;
     clientPlayers.value = await playersInSession();
     client.value = await fetchClientData();
+
+    socket.getSocket().on('started', () => {
+        router.push('/game');
+    })
 });
 </script>
+

@@ -11,23 +11,12 @@ const game = ref();
 const socketService: any = inject('$socket');
 const emit = defineEmits(['current-active-scene']);
 const serverListeners = () => {
-    socketService.getSocket().on('update', (object: any) => {
-        if(scene.value instanceof MainGame) {
-            scene.value.render({object});
-        }
-    });
+    // socketService.getSocket().on('update', (data: any) => {
+    //     console.log(scene.value);
 
-    EventBus.on(
-            "update",
-            (data: {
-                objectId: string;
-                object: ClientGameObject;
-                lerp: boolean;
-            }) => {
-                this.render(data.objectId, data.object, data.lerp);
-            },
-        );
-
+    //     if(scene.value instanceof MainGame) {
+    //     }
+    // });
     /**
      * Called when another player drives, to animate their spirte
      */
@@ -55,7 +44,11 @@ onMounted(() => {
         }
         socketService.getSocket().emit('drive',data);
     });
-    serverListeners();
+
+    socketService.getSocket().on('update',(data: any) => {
+        EventBus.emit('update',data);
+    })
+    // serverListeners();
 });
 
 onUnmounted(() => {

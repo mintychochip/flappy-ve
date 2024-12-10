@@ -32,13 +32,15 @@ function calculatePipeGap(settings, config) {
 /**
  *
  * @param {Vector} origin
+ * @param {SessionConfig} config
+ * @param {SessionSettings} settings
  * @returns {GameObjectBuilder}
  */
-function createPipe(origin, sessionConfig) {
+function createPipeBuilder(origin, settings, config) {
   return new GameObjectBuilder("pipe")
     .setPosition(origin)
-    .setVelocity(this.initialVelocity)
-    .setDimensions(this.pipeDimensions);
+    .setVelocity(config.pipeVelocity)
+    .setDimensions(settings.pipeDimensions);
 }
 /**
  *
@@ -58,14 +60,13 @@ function createPipes(settings,config) {
 
     const origin = new Vector(pipeX, pipeY);
 
-    const delegate = createPipe(origin).build();
+    const delegate = createPipeBuilder(origin, settings, config).build();
 
     const pipe = new LeaderObject(delegate).addFollower(
       uuidv4(),
-      createPipe(origin).setRotation(180).build(),
-      new Vector(0, -settings.pipeSpacer - y)
+      createPipeBuilder(origin, settings, config).setRotation(180).build(),
+      new Vector(0, 0)
     );
-
     pipes.set(uuidv4(), pipe);
   }
   return pipes;
@@ -198,6 +199,11 @@ class Session {
   }
 }
 class SessionDispatch {
+  /**
+   * 
+   * @param {Socket} io 
+   * @param {string} sessionId 
+   */
   constructor(io, sessionId) {
     this.io = io;
     this.sessionId = sessionId;
@@ -206,7 +212,7 @@ class SessionDispatch {
     if (object instanceof LeaderObject) {
       const objects = object.flatten(objectId);
       objects.forEach((object, id) => {
-        this.update(id, object);
+        this.update(id, object, lerp);
       });
     }
     const data = {
@@ -214,7 +220,11 @@ class SessionDispatch {
       object,
       lerp,
     };
-    this.io.to(this.sessionId).emit(data);
+    this.io.to(this.sessionId).emit('update',data);
+  }
+
+  start() {
+    this.io.to(this.sessionId).emit('started');
   }
 }
 class SessionHandler {
@@ -231,7 +241,9 @@ class SessionHandler {
     if (this.handlerId || !this.session) {
       return this;
     }
+    dispatch.start();
     const { settings, config } = this.session;
+    const interval = config.interval();
     const pipeGap = calculatePipeGap(settings,config);
     this.handlerId = setInterval(() => {
       this.session.objects.forEach((object, objectId) => {
@@ -239,29 +251,29 @@ class SessionHandler {
         if (object.type.includes("pipe") && object instanceof LeaderObject) {
           object.update(1 / config.tps);
           if (object.position.x < -2 * settings.pipeDimensions.x) {
-            let pipeX =
-              settings.viewportWidth + pipeGap - 2 * settings.pipeDimensions.x;
-            let pipeY = settings.randomPipeY(pipeDimensions.y);
+            const pipeX =
+              settings.viewportWidth + pipeGap - 2 * settings.pipeDimensions.x; 
+            const pipeY = settings.randomPipeY();
             object.setPosition(pipeX, pipeY);
             lerp = false;
           }
           dispatch.update(objectId, object, lerp);
         }
-        if (object.type === "player") {
-          object.update(
-            1 / config.tps,
-            settings.viewportWidth,
-            settings.viewportHeight
-          );
-          // this.getPipes().forEach((pipe) => {
-          //   if (pipe.collides(object)) {
-          //     console.log("collision");
-          //   }
-          // });
-          // dispatch.update(objectId, object, lerp);
-        }
+        // if (object.type === "player") {
+        //   // object.update(
+        //   //   1 / config.tps,
+        //   //   settings.viewportWidth,
+        //   //   settings.viewportHeight
+        //   // );
+        //   // this.getPipes().forEach((pipe) => {
+        //   //   if (pipe.collides(object)) {
+        //   //     console.log("collision");
+        //   //   }
+        //   // });
+        //   // dispatch.update(objectId, object, lerp);
+        // }
       });
-    }, this.session.config.interval());
+    }, interval);
     return this;
   }
 

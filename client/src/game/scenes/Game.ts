@@ -95,10 +95,13 @@ export class Game extends Scene {
             }
             player.sprite.anims.play("drive");
         });
+
+        EventBus.on('update', (data: any) => {
+            this.render(data.objectId,data.object,data.lerp);
+        });
     }
     render(objectId: string, obj: GameObject, lerp: boolean): void {
         let object = this.renderedObjects.get(objectId) || this.createRender(objectId, obj);
-        
         if (object) {
             this.renderedObjects.set(objectId, object);
             object.meta = obj;

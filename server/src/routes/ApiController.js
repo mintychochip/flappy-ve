@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { SessionManager, SessionSettings } = require("../../SessionManager");
+const { SessionManager, SessionSettings, SessionConfig } = require("../../SessionManager");
 const DatabaseService = require("../service/DatabaseService");
 const { Vector } = require("../Models");
 const router = express.Router();
@@ -37,14 +37,16 @@ module.exports = (sessionManager, databaseService) => {
   router.post("/session", authenticate, async (req, res) => {
     const { config, token } = req.body;
     try {
-      const decoded = jwt.decode(token);
-      if (!decoded) {
+      const {id } = jwt.decode(token);
+      if (!id) {
         return res.status(400).json({ error: "Token was not provided." });
       }
+       
+      const sessionConfig = new SessionConfig(config.pipeCount,config.pipeVelocity, config.playerGravity, config.tps,config.playerJumpVelocity);
       const {session, sessionId} = sessionManager.createSession(
         sessionSettings,
-        config,
-        decoded.id
+        sessionConfig,
+        id
       );
       res.status(201).json({ session,sessionId });
     } catch (err) {
