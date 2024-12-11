@@ -18,6 +18,14 @@ class Vector {
         this.x = x;
         this.y = y;
     }
+
+    clone() {
+        return new Vector(this.x,this.y);
+    }
+    
+    static createFromObject(obj) {
+        return new Vector(obj.x,obj.y);
+    }
 }
 
 class GameObject {

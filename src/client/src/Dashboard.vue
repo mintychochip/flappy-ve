@@ -1,5 +1,5 @@
 <template>
-    <div class="w-[400px]">
+    <div class="grid items-center justify-center min-h-screen">
         <Tabs default-value="create">
             <TabsList class="grid w-full grid-cols-2">
                 <TabsTrigger value="create">Create</TabsTrigger>

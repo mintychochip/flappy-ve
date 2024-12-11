@@ -1,3 +1,18 @@
+`⢀⡴⠑⡄⠀⠀⠀⠀⠀⠀⠀⣀⣀⣤⣤⣤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠸⡇⠀⠿⡀⠀⠀⠀⣀⡴⢿⣿⣿⣿⣿⣿⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠑⢄⣠⠾⠁⣀⣄⡈⠙⣿⣿⣿⣿⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⢀⡀⠁⠀⠀⠈⠙⠛⠂⠈⣿⣿⣿⣿⣿⠿⡿⢿⣆⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⢀⡾⣁⣀⠀⠴⠂⠙⣗⡀⠀⢻⣿⣿⠭⢤⣴⣦⣤⣹⠀⠀⠀⢀⢴⣶⣆
+⠀⠀⢀⣾⣿⣿⣿⣷⣮⣽⣾⣿⣥⣴⣿⣿⡿⢂⠔⢚⡿⢿⣿⣦⣴⣾⠁⠸⣼⡿
+⠀⢀⡞⠁⠙⠻⠿⠟⠉⠀⠛⢹⣿⣿⣿⣿⣿⣌⢤⣼⣿⣾⣿⡟⠉⠀⠀⠀⠀⠀
+⠀⣾⣷⣶⠇⠀⠀⣤⣄⣀⡀⠈⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
+⠀⠉⠈⠉⠀⠀⢦⡈⢻⣿⣿⣿⣶⣶⣶⣶⣤⣽⡹⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
+         ⠉⠲⣽⡻⢿⣿⣿⣿⣿⣿⣿⣷⣜⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
+          ⢸⣿⣿⣷⣶⣮⣭⣽⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⣀⣀⣈⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠇⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠻⠿⠿⠿⠿⠛⠉`
 const { v4: uuidv4 } = require("uuid");
 const EventEmitter = require("events");
 const {
@@ -57,14 +72,15 @@ function createPipes(settings, config) {
   for (let i = 0; i < config.pipeCount; i++) {
     const pipeX = viewportWidth + pipeGap + i * (x + pipeGap);
     const pipeY = settings.randomPipeY();
+    const origin = new Vector(pipeX, pipeY);
     const delegate = createPipeBuilder(
-      new Vector(pipeX, pipeY),
+      origin,
       settings,
       config
     ).build();
     const leader = new LeaderObject(delegate).addFollower(
       uuidv4(),
-      createPipeBuilder(new Vector(pipeX, pipeY), settings, config)
+      createPipeBuilder(origin.clone(), settings, config)
         .setRotation(180)
         .build(),
       new Vector(0, -pipeSpacer - y)
@@ -86,8 +102,8 @@ function createPlayer(playerName, settings, config) {
       .setBounded(true)
       .setGravity(config.playerGravity)
       .setName(playerName)
-      .setDimensions(settings.playerDimensions)
-      .setPosition(settings.playerOrigin)
+      .setDimensions(settings.playerDimensions.clone())
+      .setPosition(settings.playerOrigin.clone())
       .build()
   );
 }
@@ -169,7 +185,7 @@ class Session {
     }
     const player = this.objects.get(playerId);
     const { playerJumpVelocity } = this.config;
-    player.velocity = new Vector(playerJumpVelocity.x, playerJumpVelocity.y);
+    player.velocity = playerJumpVelocity.clone();
   }
 
   getPlayers() {
@@ -256,6 +272,7 @@ class SessionDispatch {
    */
   stop(handler) {
     handler.stop();
+    this.io.to(this.sessionId).emit('session-stopped');
     this.observer.notify('stopped',({sessionId: this.sessionId}));
   }
 }
@@ -432,7 +449,10 @@ class SessionManager {
       if (!data) {
         return;
       }
-      console.log(data);
+      const { sessionId } = data;
+      const hostId = this.getHostId(sessionId);
+      this.hosts.delete(hostId);
+      this.handlers.delete(sessionId);
    } 
   }
 }
