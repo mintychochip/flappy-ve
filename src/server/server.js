@@ -4,7 +4,7 @@ const http = require("http");
 const socketIo = require("socket.io");
 const cors = require("cors");
 const routes = require("./src/routes/ApiController"); // Import the routes directly
-const { join } = require("path");
+const path = require("path");
 const {
   SessionManager,
   SessionConfig,
@@ -21,6 +21,10 @@ const app = express();
 
 const server = http.createServer(app);
 
+const dirname = path.resolve();
+const clientPath = path.join(dirname, 'dist/client');
+console.log(clientPath)
+
 const io = socketIo(server, {
   cors: {
     origin: "http://localhost:8081",
@@ -30,6 +34,8 @@ const io = socketIo(server, {
 
 app.use(express.json());
 app.use(cors());
+app.use(express.static(clientPath))
+
 const manager = new SessionManager(io);
 const databaseService = new DatabaseService("database.db");
 app.use("/api", routes(manager, databaseService));
