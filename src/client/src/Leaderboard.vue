@@ -16,9 +16,6 @@
         <TableBody>
             <TableRow v-for="(result,userId) in highestScores":key="userId">
                 <TableCell class="font-medium">
-                    {{ userId }}
-                </TableCell>
-                <TableCell class="font-medium">
                     {{ result[0].name }}
                 </TableCell>
                 <TableCell class="font-medium">
