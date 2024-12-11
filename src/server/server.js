@@ -71,6 +71,7 @@ io.on("connection", (socket) => {
         return;
       }
       const result = manager.joinSession(sessionId, user, socket);
+      console.log(result);
       io.to(sessionId).emit("player-joined", result);
       if (callback) {
         callback({ result });

@@ -14,7 +14,8 @@
                         <NumberFieldIncrement />
                     </NumberFieldContent>
                 </NumberField>
-                <NumberField v-model="pipeVelocityX" id="pipe-velocity" :default-value="pipeVelocityX" :min="1" :max="128">
+                <NumberField v-model="pipeVelocityX" id="pipe-velocity" :default-value="pipeVelocityX" :min="1"
+                    :max="128">
                     <Label class="text-sm">Pipe Velocity</Label>
                     <NumberFieldContent>
                         <NumberFieldDecrement />
@@ -22,7 +23,8 @@
                         <NumberFieldIncrement />
                     </NumberFieldContent>
                 </NumberField>
-                <NumberField v-model="playerGravity" id="player-gravity" :default-value="playerGravity" :min="1" :max="128">
+                <NumberField v-model="playerGravity" id="player-gravity" :default-value="playerGravity" :min="1"
+                    :max="128">
                     <Label class="text-sm">Player Gravity</Label>
                     <NumberFieldContent>
                         <NumberFieldDecrement />
@@ -38,8 +40,8 @@
                         <NumberFieldIncrement />
                     </NumberFieldContent>
                 </NumberField>
-                <NumberField v-model="playerJumpVelocityY" id="player-jump-velocity" :default-value="playerJumpVelocityY" :min="1"
-                    :max="128">
+                <NumberField v-model="playerJumpVelocityY" id="player-jump-velocity"
+                    :default-value="playerJumpVelocityY" :min="1" :max="128">
                     <Label class="text-sm">Player Jump Velocity</Label>
                     <NumberFieldContent>
                         <NumberFieldDecrement />
@@ -56,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, ref } from 'vue';
+import { h, inject, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -77,11 +79,12 @@ import {
 import { Vector } from './game/ClientModels';
 import router from './router';
 import { useToast } from './components/ui/toast';
+import ToastAction from './components/ui/toast/ToastAction.vue';
 const pipeCount = ref<number>(4);
-const pipeVelocityX = ref<number>(20);
-const playerGravity = ref<number>(70);
-const tps = ref<number>(20);
-const playerJumpVelocityY = ref<number>(30);
+const pipeVelocityX = ref<number>(10);
+const playerGravity = ref<number>(50);
+const tps = ref<number>(32);
+const playerJumpVelocityY = ref<number>(18);
 
 interface SessionConfig {
     pipeCount: number
@@ -91,42 +94,78 @@ interface SessionConfig {
     playerJumpVelocity: Vector
 }
 const apiUrl: string = inject('api-url') as string;
-
 const { toast } = useToast();
-const handleCreateSession = async (e:SubmitEvent) => {
+const socket: any = inject('$socket');
+const joinSession = async (sessionId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        return;
+    }
+    const data = {
+        sessionId,
+        token
+    }
+    try {
+        socket.getSocket().emit('join', data, (response: boolean) => {
+            if (response && sessionId) {
+                router.push({ path: '/session', query: { id: sessionId } });
+            }
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
+const sessionToast = (sessionId: string) => {
+    toast({
+                    title: `Session ID: ${sessionId}`,
+                    description: 'Use this to join a session',
+                    duration: 5000,
+                    action: h(ToastAction, {
+                        altText: 'Click to Join',
+                        onClick: () => joinSession(sessionId)
+                    }, {
+                        default: () => 'Click to Join'
+                    })
+                })
+}
+const handleCreateSession = async (e: SubmitEvent) => {
     e.preventDefault();
     try {
         const token = localStorage.getItem('token');
-        if(!token) {
+        if (!token) {
             router.push('/login');
             return;
         }
         const config: SessionConfig = {
-            pipeCount: pipeCount.value,  
-            pipeVelocity: { 
-                x: -Math.max(0,pipeVelocityX.value),  
-                y: 0                            
+            pipeCount: pipeCount.value,
+            pipeVelocity: {
+                x: -Math.max(0, pipeVelocityX.value),
+                y: 0
             },
-            playerGravity: playerGravity.value,  
-            tps: tps.value,                      
-            playerJumpVelocity: { 
-                x: 0,                               
-                y: -Math.max(0,playerJumpVelocityY.value)  
+            playerGravity: playerGravity.value,
+            tps: tps.value,
+            playerJumpVelocity: {
+                x: 0,
+                y: -Math.max(0, playerJumpVelocityY.value)
             }
         };
         const response = await fetch(`${apiUrl}/api/session`, {
             method: 'POST',
             headers: {
-                "Authorization" : `Bearer ${token}`,
+                "Authorization": `Bearer ${token}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
                 config,
-                token 
+                token
             })
         });
 
-        if(!response.ok) {
+        if (!response.ok) {
+            const sessionId = sessionStorage.getItem('sessionId');
+            if (sessionId) {
+                sessionToast(sessionId);
+            }
             const err = await response.json();
             console.error(err);
             return;
@@ -135,17 +174,21 @@ const handleCreateSession = async (e:SubmitEvent) => {
         const data = await response.json();
         const sessionId = data.sessionId;
 
-        if(!sessionId) {
+        if (!sessionId) {
             console.error("A session ID was not found in the response.");
             return;
         }
-        toast({
-            title: `Session ID: ${sessionId}`,
-            description: 'Use this to join a session',
-            duration: 5000
-        })
+        sessionToast(sessionId);
+        sessionStorage.setItem('sessionId', sessionId);
     } catch (err) {
-        toast({})
+        const sessionId = sessionStorage.getItem('sessionId');
+        if (sessionId) {
+            toast({
+                title: `Session ID: ${sessionId}`,
+                description: 'Use this to join a session',
+                duration: 5000
+            })
+        }
         console.error(err);
     }
 

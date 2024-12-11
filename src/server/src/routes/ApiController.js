@@ -1,7 +1,11 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { SessionManager, SessionSettings, SessionConfig } = require("../../SessionManager");
+const {
+  SessionManager,
+  SessionSettings,
+  SessionConfig,
+} = require("../../SessionManager");
 const DatabaseService = require("../service/DatabaseService");
 const { Vector } = require("../Models");
 const router = express.Router();
@@ -23,27 +27,33 @@ module.exports = (sessionManager, databaseService) => {
   router.post("/session", authenticate, async (req, res) => {
     const { config, token } = req.body;
     try {
-      const {id } = jwt.decode(token);
+      const { id } = jwt.decode(token);
       if (!id) {
         return res.status(400).json({ error: "Token was not provided." });
       }
-       
-      const sessionConfig = new SessionConfig(config.pipeCount,config.pipeVelocity, config.playerGravity, config.tps,config.playerJumpVelocity);
-      const {session, sessionId} = sessionManager.createSession(
+
+      const sessionConfig = new SessionConfig(
+        config.pipeCount,
+        Vector.createFromObject(config.pipeVelocity),
+        config.playerGravity,
+        config.tps,
+        Vector.createFromObject(config.playerJumpVelocity)
+      );
+      const { session, sessionId } = sessionManager.createSession(
         sessionSettings,
         sessionConfig,
         id
       );
-      res.status(201).json({ session,sessionId });
+      res.status(201).json({ session, sessionId });
     } catch (err) {
-      console.log(err)
+      console.log(err);
       res.status(500).json({ err });
     }
   });
-  router.get("/session", async(req,res) => {
+  router.get("/session", async (req, res) => {
     try {
       const sessions = {};
-      sessionManager.handlers.forEach((handler,id) => {
+      sessionManager.handlers.forEach((handler, id) => {
         sessions[id] = handler.session;
       });
 
@@ -56,12 +66,17 @@ module.exports = (sessionManager, databaseService) => {
     const sessionId = req.params.id;
     try {
       const handler = sessionManager.getHandler(sessionId);
-      if(!handler) {
-        return res.status(403).json({ error: "The session does not exist."});
+      if (!handler) {
+        return res.status(403).json({ error: "The session does not exist." });
       }
       const hostId = sessionManager.getHostId(sessionId);
       const host = await databaseService.getUserById(hostId);
-      res.status(200).json({ session:handler.session, host: {id: host.id, name: host.name} });
+      res
+        .status(200)
+        .json({
+          session: handler.session,
+          host: { id: host.id, name: host.name },
+        });
     } catch (err) {
       console.log(err);
       res.status(500).json({ err });
@@ -92,10 +107,10 @@ module.exports = (sessionManager, databaseService) => {
       return res.status(500).json({ err });
     }
   });
-  router.post("/user/decode", authenticate, async(req,res) => {
-    const token = req.headers['authorization']?.split(" ")[1];
-    if(!token) {
-      return res.status(400).json({ error: "token is required"});
+  router.post("/user/decode", authenticate, async (req, res) => {
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (!token) {
+      return res.status(400).json({ error: "token is required" });
     }
     try {
       const decoded = jwt.decode(token);
@@ -104,10 +119,10 @@ module.exports = (sessionManager, databaseService) => {
       res.status(401).json({ err });
     }
   });
-  router.post("/user/verify", authenticate, async(req,res) => {
-    const token = req.headers['authorization']?.split(" ")[1];
-    if(!token) {
-      return res.status(400).json({ error: "token is required"});
+  router.post("/user/verify", authenticate, async (req, res) => {
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (!token) {
+      return res.status(400).json({ error: "token is required" });
     }
     try {
       const decoded = jwt.verify(token, SECRET);
@@ -128,11 +143,9 @@ module.exports = (sessionManager, databaseService) => {
     try {
       const user = await databaseService.getUserByName(name);
       if (!user) {
-        return res
-          .status(404)
-          .json({
-            error: "The user was not found or the password was incorrect.",
-          });
+        return res.status(404).json({
+          error: "The user was not found or the password was incorrect.",
+        });
       }
 
       const matches = await bcrypt.compare(password, user.password);
@@ -145,11 +158,9 @@ module.exports = (sessionManager, databaseService) => {
 
         return res.status(200).json({ token });
       } else {
-        return res
-          .status(401)
-          .json({
-            error: "The user was not found or the password was incorrect.",
-          });
+        return res.status(401).json({
+          error: "The user was not found or the password was incorrect.",
+        });
       }
     } catch (err) {
       return res.status(500).json({ err });

@@ -35,7 +35,7 @@ export class Game extends Scene {
     }
     
     update() {
-        const lerpFactor = 0.5;
+        const lerpFactor = 0.4;
         this.renderedObjects.forEach((object, id) => {
             if (object) {
                 const { position, type, velocity } = object.meta;
@@ -98,6 +98,7 @@ export class Game extends Scene {
         });
     }
     render(objectId: string, obj: GameObject, lerp: boolean): void {
+        console.log(obj);
         let object = this.renderedObjects.has(objectId) ? this.renderedObjects.get(objectId) : this.createRender(obj);
         if (object) {
             this.renderedObjects.set(objectId, object);

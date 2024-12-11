@@ -5,7 +5,7 @@ import StartGame from './main';
 import Phaser from 'phaser';
 import {Game as MainGame} from './scenes/Game'
 import { useRoute } from 'vue-router';
-import router from '@/router';
+import { useRouter } from 'vue-router';
 // Save the current scene instance
 
 const scene = ref();
@@ -14,7 +14,7 @@ const route = useRoute();
 const socketService: any = inject('$socket');
 const emit = defineEmits(['current-active-scene']);
 const apiUrl = inject('api-url') as string;
-
+const router = useRouter();
 onMounted(async () => {
     const sessionId = route.query.id as string;
     game.value = StartGame('game-container');
@@ -38,13 +38,19 @@ onMounted(async () => {
         s.emit('drive',data);
     });
 
-    socketService.getSocket().on('update',(data: any) => {
+    s.on('update',(data: any) => {
         EventBus.emit('update',data);
     })
     s.on('player-drive',(playerId: string) => {
         EventBus.emit('player-drive',playerId);
-    })
-     
+    });
+    s.on('session-stopped', () => {
+        if (router) {
+            router.push('/');
+        } else {
+            console.error('Router not initialized');
+        }
+    });
 });
 
 onUnmounted(() => {

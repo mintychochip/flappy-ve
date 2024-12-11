@@ -30,27 +30,29 @@ import router from './router';
 
 const localSessionId = ref<string | undefined>();
 const socket: any = inject('$socket');
-const handleJoinSession = async () => {
-    if (!localSessionId.value) {
-        return;
-    }
-    localStorage.setItem('sessionId', localSessionId.value);
+const joinSession = async (sessionId: string) => {
     const token = localStorage.getItem('token');
     if (!token) {
         return;
     }
     const data = {
-        sessionId: localSessionId.value,
+        sessionId,
         token
     }
     try {
         socket.getSocket().emit('join', data, (response: boolean) => {
-            if (response && localSessionId.value) {
-                router.push({ path: '/session', query:{ id: localSessionId.value}});
+            if (response && sessionId) {
+                router.push({ path: '/session', query:{ id: sessionId}});
             }
         });
     } catch (err) {
         console.error(err);
     }
+}
+const handleJoinSession = async () => {
+    if (!localSessionId.value) {
+        return;
+    }
+    await joinSession(localSessionId.value);
 }
 </script>
