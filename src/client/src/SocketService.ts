@@ -3,7 +3,7 @@ const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 class SocketService {
   private socket: Socket | null = null;
-  private socketUrl: string = VITE_API_BASE_URL || "http://localhost:3000"; // Your Socket.IO server URL
+  private socketUrl: string = VITE_API_BASE_URL; // Your Socket.IO server URL
   private isConnected: boolean = false;
   constructor() {
   }
