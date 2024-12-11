@@ -10,7 +10,12 @@ interface RenderObject {
 interface Follower {
     setPosition(x: number, y: number): this;
     destroy(): void;
-    setAlpha(topLeft?: number, topRight?: number, bottomLeft?: number, bottomRight?: number): this;
+    setAlpha(
+        topLeft?: number,
+        topRight?: number,
+        bottomLeft?: number,
+        bottomRight?: number,
+    ): this;
 }
 export class Game extends Scene {
     private maxTiltAngle: number = 40;
@@ -19,7 +24,7 @@ export class Game extends Scene {
     private readonly playerId: string | null = null;
     constructor() {
         super("Game");
-        this.playerId = sessionStorage.getItem('playerId');
+        this.playerId = sessionStorage.getItem("playerId");
     }
 
     preload() {
@@ -120,8 +125,8 @@ export class Game extends Scene {
                 return;
             }
         } else {
-            if(playerDead) {
-               return;
+            if (playerDead) {
+                return;
             }
             object = this.createRender(objectId, obj);
         }
@@ -132,7 +137,10 @@ export class Game extends Scene {
         }
     }
 
-    createRender(objectId: string, object: GameObject): RenderObject | undefined {
+    createRender(
+        objectId: string,
+        object: GameObject,
+    ): RenderObject | undefined {
         const { x, y } = object.position;
         const { type } = object;
         if (type.includes("pipe")) {
@@ -149,7 +157,7 @@ export class Game extends Scene {
                 this.add.text(x, y, object.name),
                 calculateOffset(object.name),
             );
-            if(objectId && this.playerId && objectId !== this.playerId) {
+            if (objectId && this.playerId && objectId !== this.playerId) {
                 sprite.setAlpha(ENEMY_ALPHA);
             }
             return { sprite, meta: object };
@@ -179,9 +187,9 @@ class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
 
     destroy() {
         super.destroy();
-        this.followers.forEach((offset,follower) => {
+        this.followers.forEach((offset, follower) => {
             follower.destroy();
-        })
+        });
     }
     setPosition(x: number, y: number) {
         super.setPosition(x, y);
@@ -193,11 +201,16 @@ class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
         });
         return this;
     }
-    setAlpha(topLeft?: number, topRight?: number, bottomLeft?: number, bottomRight?: number): this {
+    setAlpha(
+        topLeft?: number,
+        topRight?: number,
+        bottomLeft?: number,
+        bottomRight?: number,
+    ): this {
         super.setAlpha(topLeft, topRight, bottomLeft, bottomRight);
-        this.followers.forEach((offset,follower) => {
+        this.followers.forEach((offset, follower) => {
             follower.setAlpha(topLeft, topRight, bottomLeft, bottomRight);
-        })
+        });
         return this;
     }
 }
