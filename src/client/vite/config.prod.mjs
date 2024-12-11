@@ -31,6 +31,7 @@ export default defineConfig({
       },
     logLevel: 'warning',
     build: {
+        outDir: '../../dist/client',
         rollupOptions: {
             output: {
                 manualChunks: {
