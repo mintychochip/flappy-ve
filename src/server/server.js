@@ -36,8 +36,8 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(clientPath))
 
-const manager = new SessionManager(io);
 const databaseService = new DatabaseService("database.db");
+const manager = new SessionManager(io, databaseService);
 app.use("/api", routes(manager, databaseService));
 
 io.on("connection", (socket) => {

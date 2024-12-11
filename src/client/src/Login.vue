@@ -72,7 +72,7 @@ const handleSubmit = async (e: SubmitEvent) => {
 }
 const handleSignUp = async () => {
     try {
-        const response = await fetch(`${apiUrl}/api/user`, {
+        const response = await fetch(`${apiUrl}/api/users`, {
             method: 'POST',
             headers: {
                 "Content-Type" :"application/json",
@@ -99,7 +99,7 @@ const handleSignUp = async () => {
 }
 const handleLogin = async () => {
     try {
-        const response = await fetch(`${apiUrl}/api/user/login`, {
+        const response = await fetch(`${apiUrl}/api/users/login`, {
             method: 'POST',
             headers: {
                 "Content-Type": "application/json",

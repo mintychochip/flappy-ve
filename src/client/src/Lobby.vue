@@ -123,7 +123,7 @@ const fetchClientData = async () => {
     if (!token) {
         throw new Error("token is required");
     }
-    const response = await fetch(`${apiUrl}/api/user/decode`, {
+    const response = await fetch(`${apiUrl}/api/users/decode`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -149,7 +149,7 @@ const fetchSessionData = async (): Promise<{
 }> => {
     try {
         const response = await fetch(
-            `${apiUrl}/api/session/${sessionId.value}`,
+            `${apiUrl}/api/sessions/${sessionId.value}`,
             {
                 method: "GET",
                 headers: {

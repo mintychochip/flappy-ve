@@ -149,7 +149,7 @@ const handleCreateSession = async (e: SubmitEvent) => {
                 y: -Math.max(0, playerJumpVelocityY.value)
             }
         };
-        const response = await fetch(`${apiUrl}/api/session`, {
+        const response = await fetch(`${apiUrl}/api/sessions`, {
             method: 'POST',
             headers: {
                 "Authorization": `Bearer ${token}`,

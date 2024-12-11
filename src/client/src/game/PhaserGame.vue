@@ -3,7 +3,7 @@ import { inject, onMounted, onUnmounted, Ref, ref } from 'vue';
 import { EventBus } from './EventBus';
 import StartGame from './main';
 import Phaser from 'phaser';
-import {Game as MainGame} from './scenes/Game'
+import { Game as MainGame } from './scenes/Game'
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 // Save the current scene instance
@@ -28,25 +28,27 @@ onMounted(async () => {
             return;
         }
         const userToken = localStorage.getItem('token');
-        if(!userToken) {
+        if (!userToken) {
             return;
         }
         const data = {
             sessionId: sessionId,
             userToken: userToken,
         }
-        s.emit('drive',data);
+        s.emit('drive', data);
     });
 
-    s.on('update',(data: any) => {
-        EventBus.emit('update',data);
+    s.on('update', (data: any) => {
+        EventBus.emit('update', data);
     })
-    s.on('player-drive',(playerId: string) => {
-        EventBus.emit('player-drive',playerId);
+    s.on('player-drive', (playerId: string) => {
+        EventBus.emit('player-drive', playerId);
     });
-    s.on('session-stopped', () => {
+    s.on('session-stopped', (data: {id: number}) => {
         if (router) {
-            router.push('/');
+            setTimeout(() => {
+                router.push({ path: '/game/winner', query: { matchId: data.id } });
+            })
         } else {
             console.error('Router not initialized');
         }

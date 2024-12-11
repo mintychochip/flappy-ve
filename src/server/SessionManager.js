@@ -12,7 +12,8 @@
 ⠀⠀⠀⠀⠀⠀⣀⣀⣈⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠇⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠻⠿⠿⠿⠿⠛⠉`
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠻⠿⠿⠿⠿⠛⠉`;
+//i'm sorry
 const { v4: uuidv4 } = require("uuid");
 const EventEmitter = require("events");
 const {
@@ -22,6 +23,7 @@ const {
   GameObject,
   LeaderObject,
 } = require("./src/Models");
+const DatabaseService = require("./src/service/DatabaseService");
 
 function generateSessionId() {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -73,11 +75,7 @@ function createPipes(settings, config) {
     const pipeX = viewportWidth + pipeGap + i * (x + pipeGap);
     const pipeY = settings.randomPipeY();
     const origin = new Vector(pipeX, pipeY);
-    const delegate = createPipeBuilder(
-      origin,
-      settings,
-      config
-    ).build();
+    const delegate = createPipeBuilder(origin, settings, config).build();
     const leader = new LeaderObject(delegate).addFollower(
       uuidv4(),
       createPipeBuilder(origin.clone(), settings, config)
@@ -171,11 +169,12 @@ class Session {
     this.settings = settings;
     this.objects = createPipes(settings, config);
     this.scores = new Map();
+    this.started = new Date().toISOString();
   }
 
   playersAlive() {
-    return this.getPlayers().filter(([id,player])=> {
-      return player.alive
+    return this.getPlayers().filter(([id, player]) => {
+      return player.alive;
     });
   }
 
@@ -189,8 +188,9 @@ class Session {
   }
 
   getPlayers() {
-    return Array.from(this.objects.entries())
-      .filter(([id, obj]) => obj.type === "player");
+    return Array.from(this.objects.entries()).filter(
+      ([id, obj]) => obj.type === "player"
+    );
   }
 
   getPipes() {
@@ -199,9 +199,21 @@ class Session {
     );
   }
 
+  playerIsAlive(playerId) {
+    if(!this.objects.has(playerId)) {
+      return false;
+    }
+    const player = this.objects.get(playerId);
+    if(player instanceof Player) {
+      return player.alive;
+    }
+  }
   incrementScore(playerId) {
     if (!this.scores.has(playerId)) {
       return;
+    }
+    if(!this.playerIsAlive(playerId)) {
+      return
     }
     const score = this.scores.get(playerId);
     this.scores.set(playerId, score + 1);
@@ -250,6 +262,7 @@ class SessionDispatch {
     this.io = io;
     this.sessionId = sessionId;
     this.observer = observer;
+    this.stopped = false;
   }
   update(objectId, object, lerp) {
     if (object instanceof LeaderObject) {
@@ -267,13 +280,23 @@ class SessionDispatch {
   }
 
   /**
-   * 
-   * @param {SessionHandler} handler 
+   *
+   * @param {SessionHandler} handler
    */
   stop(handler) {
+    if(this.stopped) {
+      return;
+    }
+    this.stopped = true;
     handler.stop();
-    this.io.to(this.sessionId).emit('session-stopped');
-    this.observer.notify('stopped',({sessionId: this.sessionId}));
+    const { scores,started } = handler.session;
+    this.observer.notify("stopped", {
+      sessionId: this.sessionId,
+      scores,
+      started,
+    }, (matchId) => {
+      this.io.to(this.sessionId).emit("session-stopped", matchId);
+    });    
   }
 }
 class SessionHandler {
@@ -299,7 +322,7 @@ class SessionHandler {
       this.session.objects.forEach((object, objectId) => {
         let lerp = true;
         const { position } = object;
-        if(this.session.playersAlive() == 0) {
+        if (this.session.playersAlive() == 0) {
           dispatch.stop(this);
         }
         if (object.type.includes("pipe")) {
@@ -310,9 +333,9 @@ class SessionHandler {
             previousX > settings.playerOrigin.x &&
             settings.playerOrigin.x >= nextX
           ) {
-            // this.session.getPlayers().forEach(([id, player]) => {
-            //   this.session.incrementScore(id);
-            // });
+            this.session.getPlayers().forEach(([id,player])=> {
+              this.session.incrementScore(id);
+            });
           }
           if (position.x < -2 * settings.pipeDimensions.x) {
             const pipeX =
@@ -346,7 +369,7 @@ class SessionHandler {
   }
 
   stop() {
-    if(!this.handlerId) {
+    if (!this.handlerId) {
       return;
     }
     clearInterval(this.handlerId);
@@ -357,11 +380,13 @@ class SessionManager {
   /**
    *
    * @param {Socket} io
+   * @param {DatabaseService} service
    */
-  constructor(io) {
+  constructor(io, service) {
     this.io = io;
     this.handlers = new Map();
     this.hosts = new Map();
+    this.service = service;
   }
 
   /**
@@ -443,17 +468,40 @@ class SessionManager {
     return null;
   }
 
-  notify(event, data) {
-   switch(event) {
-    case 'stopped':
-      if (!data) {
-        return;
+  async notify(event, data, callback) {
+    switch (event) {
+      case "stopped":
+        if (!data) {
+          return;
+        }
+  
+        const { sessionId, scores, started } = data;
+        const hostId = this.getHostId(sessionId);
+        this.hosts.delete(hostId);
+        this.handlers.delete(sessionId);
+  
+        if (this.service) {
+          const ended = new Date().toISOString();
+          
+          try {
+            const { id } = await this.service.createMatch(started, ended);
+  
+            for (const [userId, score] of scores) {
+              try {
+                await this.service.createMatchResult(id, userId, score);
+              } catch (err) {
+                console.error(`Failed to create match result for user ${userId}:`, err);
+              }
+            }
+            if(callback) {
+              callback({ id });
+            }
+          } catch (err) {
+            console.error("Error creating match:", err);
+          }
+        }
+        break;
       }
-      const { sessionId } = data;
-      const hostId = this.getHostId(sessionId);
-      this.hosts.delete(hostId);
-      this.handlers.delete(sessionId);
-   } 
   }
 }
 

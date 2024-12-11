@@ -7,6 +7,7 @@ import Login from "./Login.vue";
 import Dashboard from './Dashboard.vue'
 import Lobby from "./Lobby.vue";
 import Game from "./Game.vue";
+import GameWinner from "./GameWinner.vue";
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -33,6 +34,11 @@ const routes = [
         path: '/login',
         name: 'login',
         component: Login,
+    },
+    {
+        path: '/game/winner',
+        name: 'game-winner',
+        component: GameWinner
     }
 ];
 async function hasToken(to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) {
@@ -44,7 +50,7 @@ async function hasToken(to: RouteLocationNormalized, from: RouteLocationNormaliz
             }
 }
 async function checkToken(token:string): Promise<boolean> {
-     const response = await fetch(`${VITE_API_BASE_URL}/api/user/verify`, {
+     const response = await fetch(`${VITE_API_BASE_URL}/api/users/verify`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,

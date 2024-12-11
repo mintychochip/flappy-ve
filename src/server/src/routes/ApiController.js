@@ -24,7 +24,44 @@ const sessionSettings = new SessionSettings(
  * @param {DatabaseService} databaseService
  */
 module.exports = (sessionManager, databaseService) => {
-  router.post("/session", authenticate, async (req, res) => {
+  router.get("/matches", async (req, res) => {
+    try {
+      const matches = await databaseService.getAllMatches();
+      return res.status(200).json({ matches });
+    } catch (err) {
+      console.error("Error fetching matches:", err);
+      res.status(500).json({ error: "Error fetching matches." });
+    }
+  });
+
+  router.get("/matches/:id", async (req, res) => {
+    const matchId = req.params.id;
+    try {
+      const match = await databaseService.getMatchById(matchId);
+      if (!match) {
+        return res.status(404).json({ error: "Match not found." });
+      }
+      return res.status(200).json({ match });
+    } catch (err) {
+      console.error("Error fetching match:", err);
+      res.status(500).json({ error: "Error fetching match." });
+    }
+  });
+
+  router.get("/matches/:id/match-results", async (req, res) => {
+    const matchId = req.params.id;
+    try {
+      const results = await databaseService.getMatchResultsByMatchIdWithName(matchId);
+      if (!results) {
+        return res.status(404).json({ error: "Match results not found." });
+      }
+      return res.status(200).json({ results });
+    } catch (err) {
+      console.error("Error fetching match results:", err);
+      res.status(500).json({ error: "Error fetching match results." });
+    }
+  });
+  router.post("/sessions", authenticate, async (req, res) => {
     const { config, token } = req.body;
     try {
       const { id } = jwt.decode(token);
@@ -50,7 +87,7 @@ module.exports = (sessionManager, databaseService) => {
       res.status(500).json({ err });
     }
   });
-  router.get("/session", async (req, res) => {
+  router.get("/sessions", async (req, res) => {
     try {
       const sessions = {};
       sessionManager.handlers.forEach((handler, id) => {
@@ -62,7 +99,7 @@ module.exports = (sessionManager, databaseService) => {
       res.status(500).json({ err });
     }
   });
-  router.get("/session/:id", async (req, res) => {
+  router.get("/sessions/:id", async (req, res) => {
     const sessionId = req.params.id;
     try {
       const handler = sessionManager.getHandler(sessionId);
@@ -71,18 +108,16 @@ module.exports = (sessionManager, databaseService) => {
       }
       const hostId = sessionManager.getHostId(sessionId);
       const host = await databaseService.getUserById(hostId);
-      res
-        .status(200)
-        .json({
-          session: handler.session,
-          host: { id: host.id, name: host.name },
-        });
+      res.status(200).json({
+        session: handler.session,
+        host: { id: host.id, name: host.name },
+      });
     } catch (err) {
       console.log(err);
       res.status(500).json({ err });
     }
   });
-  router.get("/user", async (req, res) => {
+  router.get("/users", async (req, res) => {
     try {
       const users = await databaseService.getAllUsers();
 
@@ -91,7 +126,7 @@ module.exports = (sessionManager, databaseService) => {
       res.status(500).json({ err });
     }
   });
-  router.post("/user", async (req, res) => {
+  router.post("/users", async (req, res) => {
     const { name, password } = req.body;
 
     if (!name || !password) {
@@ -107,7 +142,7 @@ module.exports = (sessionManager, databaseService) => {
       return res.status(500).json({ err });
     }
   });
-  router.post("/user/decode", authenticate, async (req, res) => {
+  router.post("/users/decode", authenticate, async (req, res) => {
     const token = req.headers["authorization"]?.split(" ")[1];
     if (!token) {
       return res.status(400).json({ error: "token is required" });
@@ -119,7 +154,7 @@ module.exports = (sessionManager, databaseService) => {
       res.status(401).json({ err });
     }
   });
-  router.post("/user/verify", authenticate, async (req, res) => {
+  router.post("/users/verify", authenticate, async (req, res) => {
     const token = req.headers["authorization"]?.split(" ")[1];
     if (!token) {
       return res.status(400).json({ error: "token is required" });
@@ -131,7 +166,7 @@ module.exports = (sessionManager, databaseService) => {
       res.status(401).json({ err });
     }
   });
-  router.post("/user/login", async (req, res) => {
+  router.post("/users/login", async (req, res) => {
     const { name, password } = req.body;
 
     if (!name || !password) {
