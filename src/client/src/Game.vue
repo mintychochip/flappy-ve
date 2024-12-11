@@ -37,24 +37,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div id="game">
+    <div id="game" class="flex justify-center items-center min-h-screen">
         <PhaserGame ref="phaserRef" />
     </div>
 </template>
-
-<style>
-#app {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    /* Full viewport height */
-    width: 100vw;
-    /* Full viewport width */
-}
-
-.container {
-    display: grid;
-    height: 100vh;
-}
-</style>
