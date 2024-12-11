@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from "vue";
+import { inject, onMounted, onUnmounted, ref } from "vue";
 import { RocketLaunchIcon } from "@heroicons/vue/24/solid";
 import {
     Card,
@@ -145,8 +145,10 @@ const fetchSessionData = async (): Promise<{
     session: Session | null;
 }> => {
     try {
+        const endpoint = `${apiUrl}/api/sessions/${sessionId.value}`;
+        console.log(endpoint);
         const response = await fetch(
-            `${apiUrl}/api/sessions/${sessionId.value}`,
+            endpoint,
             {
                 method: "GET",
                 headers: {
@@ -161,7 +163,6 @@ const fetchSessionData = async (): Promise<{
         }
 
         const data = await response.json();
-        console.log(data);
         if (!data) {
             router.push("/");
         }
@@ -172,17 +173,17 @@ const fetchSessionData = async (): Promise<{
     }
 };
 onMounted(async () => {
-    sessionId.value = route.query.id as string;
-    if (!sessionId.value) {
+    const id = route.query.id as string;
+    if (!id) {
         router.push("/");
         return;
     }
-
+    sessionId.value = id;
     const { host, session } = await fetchSessionData();
     sessionHost.value = host;
     sessionMeta.value = session;
-    await fetchPlayers();
-    client.value = await fetchClientData();
+     await fetchPlayers();
+     client.value = await fetchClientData();
     const s = socket.getSocket();
     s.on('player-joined', (response: boolean) => {
         if (response) {
@@ -198,4 +199,8 @@ onMounted(async () => {
         router.push({path: '/game', query:{id: sessionId.value}});
     })
 });
+
+onUnmounted(() => {
+    sessionId.value = ""
+})
 </script>

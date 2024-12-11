@@ -119,7 +119,6 @@ const highestScores = () => {
     const sortedScores = Object.entries(scoresMap)
         .map(([userId, results]) => ({ userId, result: results[0] }))
         .sort((a, b) => b.result.score - a.result.score);
-    console.log(sortedScores);
     return sortedScores;
 }
 onMounted(async () => {

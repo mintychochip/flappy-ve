@@ -439,6 +439,11 @@ class SessionManager {
     }
     socket.leave(sessionId);
     handler.session.removePlayer(user);
+    const hostId = this.getHostId(sessionId);
+    if(hostId === user.id) {
+      this.hosts.delete(hostId);
+      this.handlers.delete(sessionId);
+    }
     return true;
   }
 

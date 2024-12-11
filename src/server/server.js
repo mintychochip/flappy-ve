@@ -51,7 +51,6 @@ io.on("connection", (socket) => {
       const user = await databaseService.getUserById(userId);
       const result = manager.removeUser(sessionId, user, socket);
       io.to(sessionId).emit("player-left", result);
-      console.log(result);
       if (callback) {
         callback({ result });
       }
@@ -71,6 +70,7 @@ io.on("connection", (socket) => {
       return;
     }
     try {
+      console.log(sessionId);
       const decoded = jwt.decode(token);
       const user = await databaseService.getUserById(decoded.id);
       if (!user) {
