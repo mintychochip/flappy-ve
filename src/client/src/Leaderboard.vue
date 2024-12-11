@@ -1,32 +1,53 @@
 <template>
-    <Table>
-        <TableHeader>
-            <TableRow>
-                <TableHead>
-                    User ID
-                </TableHead>
-                <TableHead>
-                    Username
-                </TableHead>
-                <TableHead>
-                    Score
-                </TableHead>
-            </TableRow>
-        </TableHeader>
-        <TableBody>
-            <TableRow v-for="(result,userId) in highestScores":key="userId">
-                <TableCell class="font-medium">
-                    {{ result[0].name }}
-                </TableCell>
-                <TableCell class="font-medium">
-                    {{ result[0].score }}
-                </TableCell>
-            </TableRow>
-        </TableBody>
-    </Table>
+    <Card>
+        <CardHeader class="grid grid-cols-2">
+            <div>
+                <CardTitle>Leaderboard</CardTitle>
+                <CardDescription>Global Leaderboard</CardDescription>
+            </div>
+            <div class="flex justify-end">
+                <Input placeholder="Username" v-model="searchQuery" />
+            </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>
+                                Username
+                            </TableHead>
+                            <TableHead>
+                                Score
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-for="(entry) in filteredScores" :key="entry.userId">
+                            <TableCell class="font-medium">
+                                {{ entry.result.name }}
+                            </TableCell>
+                            <TableCell class="font-medium">
+                                {{ entry.result.score }}
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </CardContent>
+    </Card>
+
 </template>
 
 <script setup lang="ts">
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card'
 import {
     Table,
     TableBody,
@@ -37,11 +58,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { computed, inject, onMounted, ref } from "vue";
+import { ChevronDoubleDownIcon } from "@heroicons/vue/24/solid";
+import { computed, inject, onMounted, reactive, ref } from "vue";
 import { MatchResult } from "./game/ClientModels";
 interface MatchResultMap {
     [user_id: string]: MatchResult[];
 }
+const searchQuery = ref<string>();
 const userMatchResults = ref<MatchResultMap>();
 const apiUrl = inject('api-url') as string;
 const fetchAllMatchResults = async () => {
@@ -63,7 +86,21 @@ const fetchAllMatchResults = async () => {
         console.error(err);
     }
 }
-const highestScores = computed(() => {
+
+const filteredScores = computed(() => {
+    const scores = highestScores();
+    if(!scores) {
+        return null;
+    }
+    if(!searchQuery.value) {
+        return scores;
+    }
+    const val = searchQuery.value;
+    return highestScores()?.filter((entry) =>
+        entry.result.name.toLowerCase().includes(val.toLowerCase())
+      );
+})
+const highestScores = () => {
     if (!userMatchResults.value) {
         return;
     }
@@ -77,10 +114,14 @@ const highestScores = computed(() => {
             }
         });
 
-        scoresMap[userId] = [highestScoreResult]; 
+        scoresMap[userId] = [highestScoreResult];
     });
-    return scoresMap;
-})
+    const sortedScores = Object.entries(scoresMap)
+        .map(([userId, results]) => ({ userId, result: results[0] }))
+        .sort((a, b) => b.result.score - a.result.score);
+    console.log(sortedScores);
+    return sortedScores;
+}
 onMounted(async () => {
 
     const { matchResults } = await fetchAllMatchResults();

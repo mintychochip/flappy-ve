@@ -23,15 +23,7 @@
                     </div>
                     <!-- Test Card section -->
                     <div class="flex-1">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Leaderboard</CardTitle>
-                                <CardDescription>Global Leaderboard</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Leaderboard/>
-                            </CardContent>
-                        </Card>
+                        <Leaderboard/>
                     </div>
                 </div>
             </CardContent>

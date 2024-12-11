@@ -60,7 +60,7 @@ import { Button } from "@/components/ui/button";
 import ScrollArea from "./components/ui/scroll-area/ScrollArea.vue";
 import { useRoute } from "vue-router";
 import router from "./router";
-import { GameObject } from "./game/ClientModels";
+import { GameObject, User } from "./game/ClientModels";
 const apiUrl = inject("api-url") as string;
 const socket: any = inject("$socket");
 const route = useRoute();
@@ -69,10 +69,7 @@ const sessionHost = ref<User | null>();
 const sessionMeta = ref<Session | null>();
 const clientPlayers = ref<[string, GameObject][] | null>();
 const client = ref<User>();
-interface User {
-    id: string;
-    name: string;
-}
+
 
 interface Session {
     objects: Map<string, GameObject>;

@@ -18,7 +18,10 @@ export interface Vector {
     x: number
     y: number
 }
-
+export interface User {
+    id: string;
+    name: string;
+}
 export interface MatchResult {
     id: number
     match_id: number
