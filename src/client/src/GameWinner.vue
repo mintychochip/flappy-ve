@@ -2,23 +2,32 @@
     <div class=" flex justify-center items-center min-h-screen">
         <Card class="w-2/3">
             <CardHeader>
-                <CardTitle>The winner of the game was: {{ winnerName }}</CardTitle>
+                <CardTitle>  The winner of the game was: {{ localWinner?.name || 'unknown' }}
+                </CardTitle>
+                <CardDescription>Match ID: {{ localMatchId }}</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>User Id</TableHead>
-                            <TableHead>Id</TableHead>
-                            <TableHead>Id</TableHead>
-                            <TableHead>Id</TableHead>
+                            <TableHead>User Name</TableHead>
+                            <TableHead>Score</TableHead>
                         </TableRow>
                     </TableHeader>
+                    <TableBody>
+                        <TableRow v-for="result in localResults" :key="result.id">
+                            <TableCell class="font-medium">
+                                {{ result.name }}
+                            </TableCell>
+                            <TableCell>
+                                {{ result.score }}
+                            </TableCell>
+                        </TableRow> 
+                    </TableBody>
                 </Table>
             </CardContent>
             <CardFooter>
                 <Button @click="handleBackToDashboard">Back to Dashboard</Button>
-
             </CardFooter>
         </Card>
     </div>
@@ -47,9 +56,11 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import router from './router';
+import { MatchResult } from './game/ClientModels';
 const route = useRoute();
 const localMatchId = ref<number>();
-const winnerName = ref<string>();
+const localResults = ref<MatchResult[]>();
+const localWinner = ref<MatchResult | null>();
 const apiUrl = inject('api-url');
 const handleBackToDashboard = () => {
     router.push('/');
@@ -76,11 +87,38 @@ const fetchResults = async (matchId: number) => {
         console.error(err);
     }
 }
+
+const fetchWinner = async () => {
+   const winner = findWinner(localResults.value);
+   if(winner) {
+    localWinner.value = winner;
+   }
+}
+const findWinner = (results: MatchResult[] | undefined) => {
+    if(!results) {
+        return null;
+    }
+    let max = results[0];
+    if(results.length === 1) {
+        return max;
+    }
+    for(let i = 1; i < results.length; i++) {
+        const result = results[i];
+        if(result.score > max.score) {
+            max = result;
+        }
+    }
+    return max;
+}
 onMounted(async () => {
     const stringMatchId = route.query.matchId as string;
     localMatchId.value = Number.parseInt(stringMatchId);
 
-    const results = await fetchResults(localMatchId.value);
-    console.log(results);
+    const {results} = await fetchResults(localMatchId.value);
+
+    if(results) {
+        localResults.value = results;
+    } 
+    await fetchWinner();
 })
 </script>

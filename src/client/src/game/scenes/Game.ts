@@ -2,6 +2,7 @@ import { GameObjects, Scene } from "phaser";
 import { EventBus } from "../EventBus";
 import { Vector, GameObject, Player } from "../ClientModels";
 
+const ENEMY_ALPHA = 0.3;
 interface RenderObject {
     sprite: Phaser.Physics.Arcade.Sprite;
     meta: GameObject;
@@ -9,13 +10,16 @@ interface RenderObject {
 interface Follower {
     setPosition(x: number, y: number): this;
     destroy(): void;
+    setAlpha(topLeft?: number, topRight?: number, bottomLeft?: number, bottomRight?: number): this;
 }
 export class Game extends Scene {
     private maxTiltAngle: number = 40;
     private renderedObjects: Map<string, RenderObject> = new Map();
     private lerpSet: Set<string> = new Set();
+    private readonly playerId: string | null = null;
     constructor() {
         super("Game");
+        this.playerId = sessionStorage.getItem('playerId');
     }
 
     preload() {
@@ -119,7 +123,7 @@ export class Game extends Scene {
             if(playerDead) {
                return;
             }
-            object = this.createRender(obj);
+            object = this.createRender(objectId, obj);
         }
         if (object) {
             this.renderedObjects.set(objectId, object);
@@ -128,7 +132,7 @@ export class Game extends Scene {
         }
     }
 
-    createRender(object: GameObject): RenderObject | undefined {
+    createRender(objectId: string, object: GameObject): RenderObject | undefined {
         const { x, y } = object.position;
         const { type } = object;
         if (type.includes("pipe")) {
@@ -145,6 +149,9 @@ export class Game extends Scene {
                 this.add.text(x, y, object.name),
                 calculateOffset(object.name),
             );
+            if(objectId && this.playerId && objectId !== this.playerId) {
+                sprite.setAlpha(ENEMY_ALPHA);
+            }
             return { sprite, meta: object };
         }
     }
@@ -184,6 +191,13 @@ class LeaderGroup extends Phaser.Physics.Arcade.Sprite {
         this.followers.forEach((offset, follower) => {
             follower.setPosition(x + offset.x, y + offset.y);
         });
+        return this;
+    }
+    setAlpha(topLeft?: number, topRight?: number, bottomLeft?: number, bottomRight?: number): this {
+        super.setAlpha(topLeft, topRight, bottomLeft, bottomRight);
+        this.followers.forEach((offset,follower) => {
+            follower.setAlpha(topLeft, topRight, bottomLeft, bottomRight);
+        })
         return this;
     }
 }

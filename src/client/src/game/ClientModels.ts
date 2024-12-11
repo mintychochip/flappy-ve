@@ -19,6 +19,10 @@ export interface Vector {
     y: number
 }
 
-export enum ClientGameEvent {
-    DRIVE = 'drive',
+export interface MatchResult {
+    id: number
+    match_id: number
+    score: number
+    user_id: string
+    name: string
 }

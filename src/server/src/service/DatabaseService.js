@@ -36,12 +36,18 @@ const GET_ALL_MATCHES = "SELECT * FROM match";
 const DELETE_MATCH = "DELETE FROM match WHERE id = ?";
 
 // Match Result table queries
-const CREATE_MATCH_RESULT = "INSERT INTO match_result (match_id, user_id, score) VALUES (?, ?, ?);";
-const GET_MATCH_RESULTS_BY_MATCH_ID = "SELECT * FROM match_result WHERE match_id = ?";
-const GET_MATCH_RESULTS_BY_USER_ID = "SELECT * FROM match_result WHERE user_id = ?";
+const CREATE_MATCH_RESULT =
+  "INSERT INTO match_result (match_id, user_id, score) VALUES (?, ?, ?);";
+const GET_MATCH_RESULTS_BY_MATCH_ID =
+  "SELECT * FROM match_result WHERE match_id = ?";
+const GET_MATCH_RESULTS_BY_USER_ID =
+  "SELECT * FROM match_result WHERE user_id = ?";
 const DELETE_MATCH_RESULTS = "DELETE FROM match_result WHERE match_id = ?";
-
-const GET_MATCH_RESULTS_BY_MATCH_ID_WITH_NAME = "SELECT mr.*, u.name AS user_name FROM match_result mr JOIN users u ON mr.user_id = u.id WHERE mr.match_id = $1";
+const GET_ALL_MATCH_RESULTS = `SELECT mr.id, mr.match_id, mr.user_id, mr.score, u.name
+FROM match_result mr
+JOIN users u ON mr.user_id = u.id;`;
+const GET_MATCH_RESULTS_BY_MATCH_ID_WITH_NAME =
+  "SELECT mr.*, u.name FROM match_result mr JOIN users u ON mr.user_id = u.id WHERE mr.match_id = $1";
 
 class DatabaseService {
   constructor(filePath) {
@@ -50,7 +56,7 @@ class DatabaseService {
         console.error("Error opening database:", err.message);
       } else {
         console.log("Connected to the SQLite database.");
-        this.db.run('PRAGMA foreign_keys=ON;');
+        this.db.run("PRAGMA foreign_keys=ON;");
         this.db.run(USER_TABLE);
         this.db.run(MATCH_TABLE);
         this.db.run(MATCH_RESULT_TABLE);
@@ -159,6 +165,17 @@ class DatabaseService {
     });
   }
 
+  getAllMatchResults() {
+    return new Promise((resolve, reject) => {
+      this.db.all(GET_ALL_MATCH_RESULTS, [], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
   deleteMatch(id) {
     return new Promise((resolve, reject) => {
       this.db.run(DELETE_MATCH, [id], function (err) {
@@ -176,13 +193,17 @@ class DatabaseService {
   // Match result-related methods
   createMatchResult(matchId, userId, score) {
     return new Promise((resolve, reject) => {
-      this.db.run(CREATE_MATCH_RESULT, [matchId, userId, score], function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve({ id: this.lastID, matchId, userId, score });
+      this.db.run(
+        CREATE_MATCH_RESULT,
+        [matchId, userId, score],
+        function (err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id: this.lastID, matchId, userId, score });
+          }
         }
-      });
+      );
     });
   }
 
@@ -199,13 +220,17 @@ class DatabaseService {
   }
   getMatchResultsByMatchIdWithName(matchId) {
     return new Promise((resolve, reject) => {
-      this.db.all(GET_MATCH_RESULTS_BY_MATCH_ID_WITH_NAME, [matchId], (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows);
+      this.db.all(
+        GET_MATCH_RESULTS_BY_MATCH_ID_WITH_NAME,
+        [matchId],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
+          }
         }
-      });
+      );
     });
   }
 

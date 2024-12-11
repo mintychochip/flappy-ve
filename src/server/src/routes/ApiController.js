@@ -24,6 +24,15 @@ const sessionSettings = new SessionSettings(
  * @param {DatabaseService} databaseService
  */
 module.exports = (sessionManager, databaseService) => {
+  router.get("/match-results", async(req,res) => {
+    try {
+      const matchResults = await databaseService.getAllMatchResults();
+      return res.status(200).json({matchResults});
+    } catch(err) {
+      console.error('Error fetching matches:', err);
+      res.status(500).json({err: "Error fetching match results."});
+    }
+  })
   router.get("/matches", async (req, res) => {
     try {
       const matches = await databaseService.getAllMatches();
